@@ -1,3 +1,5 @@
+![alt tag](https://raw.githubusercontent.com/lateralblast/vamp/master/vamp.jpg)
+
 VAMP
 ====
 
