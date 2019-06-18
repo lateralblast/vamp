@@ -1,0 +1,486 @@
+#!/usr/bin/env python
+
+from ansible.constants import mk_boolean
+from ansible.module_utils.basic import *
+import os
+
+OCUMENTATION = '''
+---
+module: vboxmanage
+version_added: "post 2.8.0"
+short_description: Automate VirtualBox command line
+dewscription: 
+  - Automate VirtualBox command line
+options:
+  dryrun:
+    description:
+      - Used with import to perform a dry run (don't import)
+  options:
+    description:
+      - Used with clonevm, import, and export to provide more options to command line
+  output:
+    description:
+      - Used with export to specifile the output file
+  type:
+    description:
+      - Used with startvm to specify headles etc
+  import:
+    description:
+      - Import VM
+  export:
+    description:
+      - Export VM
+  showvminfo:
+    description:
+      - Get VM information
+  controlvm:
+    description:
+      - Control VM
+  startvm:
+    description:
+      - Start VM
+  modifyvm:
+    description:
+      - Modify VM parameters
+  unregistervm:
+    description:
+      - Unregister VM
+  registervm:
+    description:
+      - Register VM
+  list:
+    description:
+      - List VMs and other resources
+  param:
+    description:
+      - Used with get/set parameter function, e.g. modifyvm
+  value:
+    description:
+      - Used with set parameter function, e.g. modifyvm
+'''
+
+EXAMPLES = '''
+# Set VM memory
+- vboxmanage: function=modify vm=VM_NAME param=memory value=4096 
+# Start VM in headless mode
+- vboxmanage: function=start vm=VM_NAME type=headless
+# Stop VM
+- vboxmanage: function=control vm=VM_NAME param=vmstate value=poweroff
+# Export VM
+- vboxmanage: function=export vm=VMNAME output=VM_NAME-export.ova 
+# Import VM
+- vboxmanage: function=import vm=/path/to/VM_IMPORT.ova
+'''
+
+# ===========================================
+# Module code.
+#
+#  shell:       "vboxmanage modifyvm {{ ecs_bundle_vm }} --natpf2 delete {{ item.rule }} ; vboxmanage modifyvm {{ ecs_bundle_vm }} --natpf2 '{{ item.nat_string }}'"
+
+def vboxmanage_modifyvm(vm, param, name, value):
+  if re.search("natpf",param):
+    command = "vboxmanage modifyvm %s --%s --delete %s ; vboxmanage modifyvm %s --%s %s" % (vm, param, name, vm, param, value)
+  else:
+    command = "vboxmanage modifyvm %s --%s %s" % (vm, param, value)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_setproperty(param, value):
+  command = "vboxmanage setproperty %s %s" % (param, value)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_closemedium(device, path, action):
+  if action == None:
+    action = ""
+  else:
+    action = "--%s" % (action)
+  command = "vboxmanage closemedium %s %s %s" % (device, path, action)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_showmediuminfo(device, path):
+  command = "vboxmanage showmediuminfo %s %s" % (device, path)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_encryptmedium(path, options):
+  command = "vboxmanage encryptmedium %s %s" % (path, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_modifymedium(device, path, options):
+  command = "vboxmanage modifymedium %s %s %s" % (device, path, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_clonemedium(device, path, output, options):
+  command = "vboxmanage modifymedium %s %s %s" % (device, path, output, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_mediumproperty(device, action, path, param, value):
+  if action == "set":
+    command = "vboxmanage mediumproperty %s %s %s %s %s" % (device, action, path, param, value)
+  else:
+    command = "vboxmanage mediumproperty %s %s %s %s" % (device, action, path, param)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_import(vm, dryrun, options):
+  if dryrun == True:
+    dryrun = "--dryrun"
+  else:
+    dryrun = ""
+  if options == None:
+    options = ""
+  else:
+    options = "--options %s" % (options)
+  command = "vboxmanage import %s %s %s" % (vm, dryrun, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_export(vm, output, vmtype, options):
+  if vmtype == None:
+    vmtype = ""
+  else:
+    vmtype = "--%s" % (vmtype)
+  if options == None:
+    options = ""
+  else:
+    options = "--options %s" % (options)
+  command = "vboxmanage export %s --output %s %s %s" % (vm, output, vmtype, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_debugvm(vm, options):
+  if options == None:
+    options = ""
+  else:
+    options = "%s" % (options)
+  command = "vboxmanage debugvm %s %s" % (vm, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_controlvm(vm, param, value):
+  if param == "vmstate":
+    command = "vboxmanage controlvm %s %s" % (vm, value)
+  else:
+    command = "vboxmanage controlvm %s %s %s" % (vm, param, value)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_startvm(vm, vmtype, param, value):
+  if vmtype == None:
+    vmtype = ""
+  else:
+    vmtype = "--type %s" % (vmtype)
+  if param == None or value == None:
+    param = ""
+    value = ""
+  else:
+    param = "--putenv %s=%s" % (param, value)
+  command = "vboxmanage startvm %s %s %s" % (vm, vmtype, param)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_showvminfo(vm, param):
+  if param == "snapshotfolder":
+    search = "SnapFldr"
+  else:
+    search = param
+  command = "vboxmanage showvminfo '%s' --machinereadable |grep -i '^%s' |head -1" % (vm, search)
+  result  = os.popen(command).readlines()
+  result  = result[0].split("=")[-1]
+  result  = result.strip()
+  result  = result.replace('"','')
+  return result
+
+def vboxmanage_registervm(path):
+  command = "vboxmanage registervm %s" % (path)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_unregistervm(vm):
+  command = "vboxmanage unregistervm %s" % (vm)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_list(value):
+  command = "vboxmanage list %s" % (value)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_extpack(extpack, options):
+  command = "vboxmanage expack %s %s" (options, extpack)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_discardstate(vm):
+  command = "vboxmanage discardstate %s" (vm)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_snapshot(vm, action, options):
+  if options == None:
+    options = ""
+  command = "vboxmanage discardstate %s %s %s" (vm, action, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_adoptstate(vm,path):
+  command = "vboxmanage adoptstate %s %s" (vm, path)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_usbdevsource(action, path, options):
+  if options == None:
+    options = ""
+  if action == "add":
+    action = "add %s" % (path)
+  command = "vboxmanage usbdevsource %s %s" (action, options)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_movevm(vm, output, vmtype):
+  if vmtype == None:
+    vmtype = ""
+  else:
+    vmtype = "--type %s" % (vmtype)
+  if output == None:
+    output = ""
+  else:
+    output = "--folder %s" % (output)
+  command = "vboxmanage movevm %s %s " (vm, vmtype, output)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_clonevm(vm, output, vmtype):
+  if vmtype == None:
+    vmtype = ""
+  else:
+    vmtype = "--type %s" % (vmtype)
+  if output == None:
+    output = ""
+  else:
+    output = "--folder %s" % (output)
+  command = "vboxmanage movevm %s %s " (vm, vmtype, output)
+  result  = os.popen(command).readlines()
+  return result
+
+def vboxmanage_storagectl(vm, action, device, name, options):
+  if action == None:
+    action = ""
+  else:
+    if action == "remove":
+      action = "--%s" % (action)
+    else:
+      action = "--%s %s" % (action, device)
+  if options == None:
+    options = ""
+  if name == None:
+    name = ""
+  else:
+    name = "--name %s" % (name)
+  command = "vboxmanage storagectl %s %s %s %s" (vm, name, action, options)
+  result  = os.popen(command).readlines()
+  return result
+
+
+def vboxmanage_bandwidthctl(vm, action, device, name, options):
+  if action == None:
+    action = ""
+  else:
+    if action == "add":
+      action = "%s %s --type %s" % (action, name, device)
+    else:
+      action = "%s %s" % (action, name)
+  if options == None:
+    options = ""
+  command = "vboxmanage bandwidthctl %s %s %s %s" (vm, action, options)
+  result  = os.popen(command).readlines()
+  return result
+
+
+def main():
+
+  module = AnsibleModule(
+    argument_spec = {
+      'vm':           { 'type': 'str' },
+      'function':     { 'type': 'str' },
+      'action':       { 'type': 'str' },
+      'dryrun':       { 'type': 'str' },
+      'options':      { 'type': 'str' },
+      'output':       { 'type': 'str' },
+      'path':         { 'type': 'str' },
+      'type':         { 'type': 'str' },
+      'name':         { 'type': 'str' },
+      'param':        { 'type': 'str' },
+      'device':       { 'type': 'str' },
+      'value':        { 'type': 'str' }
+    }, 
+    supports_check_mode=True
+  )
+
+  vm       = module.params['vm']
+  function = module.params['function']
+  action   = module.params['action']
+  param    = module.params['param']
+  value    = module.params['value']
+  dryrun   = module.params['dryrun']
+  options  = module.params['options']
+  output   = module.params['output']
+  path     = module.params['path']
+  vmtype   = module.params['type']
+  name     = module.params['name']
+  device   = module.params['device']
+  if function == "modify":
+    function = "modifyvm"
+  if function == "create":
+    function = "createvm"
+  if function == "register":
+    function = "registervm"
+  if function == "unregister":
+    function = "unregistervm"
+  if function == "start":
+    function = "startvm"
+  if function == "clone":
+    function = "clonevm"
+  if function == "move":
+    function = "movevm"
+  if function == "debug":
+    function = "debugvm"
+  if function == "control":
+    function = "controlvm"
+  if function == "importvm":
+    function = "import"
+  if function == "exportvm":
+    function = "export"
+  if not name == None:
+    value = name
+  if dryrun == "yes" or dryrun == True:
+    dryrun = True
+  else:
+    dryrun = False
+
+  changed = False
+  current = ""
+
+  if not value == None:
+    current = vboxmanage_showvminfo(vm, param)
+    changed = current != str(value)
+    if changed and not module.check_mode:
+      if function == "modifyvm":
+        vboxmanage_modifyvm(vm, param, value)
+      if function == "setproperty":
+        vboxmanage_setproperty(param, value)
+      if function == "controlvm":
+        vboxmanage_controlvm(vm, param, value)
+      if function == "startvm":
+        current = vboxmanage_showvminfo(vm, "vmstate")
+        changed = current != "running"
+        vboxmanage_startvm(vm, vmtype, param, value)
+  else:
+    if function == "startvm" or function == "export" or function == "import" or function == "debugvm" or function == "clonevm":
+      current = vboxmanage_showvminfo(vm, "vmstate")
+      if current != "running":
+        if function == "export":
+          vboxmanage_export(vm, output, vmtype, options)
+        if function == "movevm":
+          vboxmanage_movevm(vm, path, vmtype)
+        if function == "clonevm":
+          vboxmanage_movevm(vm, output, vmtype, options)
+        if function == "import":
+          vboxmanage_import(vm, dryrun, options)
+        if function == "debugvm":
+          vboxmanage_debugvm(vm, options)
+        if function == "startvm":
+          changed = current != "running"
+          vboxmanage_startvm(vm, vmtype, param, value)
+    else:
+      if function == "registervm":
+        if not vm == None and path == None:
+          path = vm
+        vboxmanage_registervm(path)
+      if function == "encryptmedium":
+        vboxmanage_encryptmedium(path, options)
+      if function == "showmediuminfo":
+        vboxmanage_showmediuminfo(device, path)
+      if function == "storagectl":
+        vboxmanage_storagectl(vm, action, device, name, options)
+      if function == "bandwidthctl":
+        vboxmanage_bandwidthctl(vm, action, device, name, options)
+      if function == "closemedium":
+        vboxmanage_closemedium(device, path, action)
+      if function == "clonemedium":
+        vboxmanage_clonemedium(device, path, output, options)
+      if function == "modifymedium":
+        vboxmanage_modifymedium(device, path, options)
+      if function == "mediumproperty":
+        vboxmanage_mediumproperty(device, action, path, param, value)
+      if function == "createvm":
+        vboxmanage_createvm(vm, options)
+      if function == "unregistervm":
+        vboxmanage_unregistervm(vm)
+      if function == "usbdevsource":
+        vboxmanage_usbdevsource(action, options)
+      if function == "snapshot":
+        vboxmanage_snapshot(vm, action, options)
+      if function == "extpack":
+        vboxmanage_extpack(extpack, options)
+      if function == "discardstate":
+        vboxmanage_discardstate(vm)
+      if function == "adoptstate":
+        vboxmanage_adoptstate(vm, path)
+      if function == "showvminfo":
+        current = vboxmanage_showvminfo(vm, param)
+      if function == "list":
+        current = vboxmanage_list(param)
+
+  if changed == None:
+    changed = ""
+  if vm == None:
+    vm = ""
+  if function == None:
+    function = ""
+  if action == None:
+    action = ""
+  if dryrun == None:
+    dryrun = ""
+  if options  == None:
+    options = ""
+  if output == None:
+    output = ""
+  if path == None:
+    path = ""
+  if vmtype == None:
+    vmtype = ""
+  if name == None:
+    name = ""
+  if param == None:
+    param = ""
+  if device == None:
+    device = ""
+  if value == None:
+    value = ""
+  if current == None:
+    current = ""
+
+  module.exit_json(
+    changed=changed,
+    vm=vm,
+    function=function,
+    action=action,
+    dryrun=dryrun,
+    options=options,
+    output=output,
+    path=path,
+    type=vmtype,
+    name=name,
+    param=param,
+    device=device,
+    value=value,
+    current=current
+  )
+
+main()
