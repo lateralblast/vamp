@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.0.1
+# Version:      0.0.2
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -95,13 +95,13 @@ def vboxmanage_modifyvm(vm, param, name, value):
     command = "vboxmanage modifyvm %s --%s --delete %s ; vboxmanage modifyvm %s --%s %s" % (vm, param, name, vm, param, value)
   else:
     command = "vboxmanage modifyvm %s --%s %s" % (vm, param, value)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_setproperty(param, value):
   command = "vboxmanage setproperty %s %s" % (param, value)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_closemedium(device, path, action):
   if action == None:
@@ -109,36 +109,36 @@ def vboxmanage_closemedium(device, path, action):
   else:
     action = "--%s" % (action)
   command = "vboxmanage closemedium %s %s %s" % (device, path, action)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_showmediuminfo(device, path):
   command = "vboxmanage showmediuminfo %s %s" % (device, path)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_encryptmedium(path, options):
   command = "vboxmanage encryptmedium %s %s" % (path, options)
-  result  = os.popen(command).readlines()
+  result  = os.popen(command).read()
   return result
 
 def vboxmanage_modifymedium(device, path, options):
   command = "vboxmanage modifymedium %s %s %s" % (device, path, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_clonemedium(device, path, output, options):
   command = "vboxmanage modifymedium %s %s %s" % (device, path, output, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_mediumproperty(device, action, path, param, value):
   if action == "set":
     command = "vboxmanage mediumproperty %s %s %s %s %s" % (device, action, path, param, value)
   else:
     command = "vboxmanage mediumproperty %s %s %s %s" % (device, action, path, param)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_import(vm, dryrun, options):
   if dryrun == True:
@@ -150,8 +150,8 @@ def vboxmanage_import(vm, dryrun, options):
   else:
     options = "--options %s" % (options)
   command = "vboxmanage import %s %s %s" % (vm, dryrun, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_export(vm, output, vmtype, options):
   if vmtype == None:
@@ -163,8 +163,8 @@ def vboxmanage_export(vm, output, vmtype, options):
   else:
     options = "--options %s" % (options)
   command = "vboxmanage export %s --output %s %s %s" % (vm, output, vmtype, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_debugvm(vm, options):
   if options == None:
@@ -172,15 +172,15 @@ def vboxmanage_debugvm(vm, options):
   else:
     options = "%s" % (options)
   command = "vboxmanage debugvm %s %s" % (vm, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_controlvm(vm, param, value):
   if param == "vmstate":
     command = "vboxmanage controlvm %s %s" % (vm, value)
   else:
     command = "vboxmanage controlvm %s %s %s" % (vm, param, value)
-  result  = os.popen(command).readlines()
+  result  = os.popen(command).read()
   return result
 
 def vboxmanage_startvm(vm, vmtype, param, value):
@@ -194,8 +194,8 @@ def vboxmanage_startvm(vm, vmtype, param, value):
   else:
     param = "--putenv %s=%s" % (param, value)
   command = "vboxmanage startvm %s %s %s" % (vm, vmtype, param)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_showvminfo(vm, param):
   if param == "snapshotfolder":
@@ -203,48 +203,48 @@ def vboxmanage_showvminfo(vm, param):
   else:
     search = param
   command = "vboxmanage showvminfo '%s' --machinereadable |grep -i '^%s' |head -1" % (vm, search)
-  result  = os.popen(command).readlines()
-  result  = result[0].split("=")[-1]
+  result  = os.popen(command).read()
+  result  = result.split("=")[-1]
   result  = result.strip()
   result  = result.replace('"','')
-  return result
+  return (result,command)
 
 def vboxmanage_registervm(path):
   command = "vboxmanage registervm %s" % (path)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_unregistervm(vm):
   command = "vboxmanage unregistervm %s" % (vm)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_list(value):
   command = "vboxmanage list %s" % (value)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_extpack(extpack, options):
   command = "vboxmanage expack %s %s" (options, extpack)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_discardstate(vm):
   command = "vboxmanage discardstate %s" (vm)
-  result  = os.popen(command).readlines()
+  result  = os.popen(command).read()
   return result
 
 def vboxmanage_snapshot(vm, action, options):
   if options == None:
     options = ""
   command = "vboxmanage discardstate %s %s %s" (vm, action, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_adoptstate(vm,path):
   command = "vboxmanage adoptstate %s %s" (vm, path)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_usbdevsource(action, path, options):
   if options == None:
@@ -252,8 +252,8 @@ def vboxmanage_usbdevsource(action, path, options):
   if action == "add":
     action = "add %s" % (path)
   command = "vboxmanage usbdevsource %s %s" (action, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_movevm(vm, output, vmtype):
   if vmtype == None:
@@ -265,8 +265,8 @@ def vboxmanage_movevm(vm, output, vmtype):
   else:
     output = "--folder %s" % (output)
   command = "vboxmanage movevm %s %s " (vm, vmtype, output)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_clonevm(vm, output, vmtype):
   if vmtype == None:
@@ -278,8 +278,8 @@ def vboxmanage_clonevm(vm, output, vmtype):
   else:
     output = "--folder %s" % (output)
   command = "vboxmanage movevm %s %s " (vm, vmtype, output)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 def vboxmanage_storagectl(vm, action, device, name, options):
   if action == None:
@@ -296,8 +296,8 @@ def vboxmanage_storagectl(vm, action, device, name, options):
   else:
     name = "--name %s" % (name)
   command = "vboxmanage storagectl %s %s %s %s" (vm, name, action, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 
 def vboxmanage_bandwidthctl(vm, action, device, name, options):
@@ -311,8 +311,8 @@ def vboxmanage_bandwidthctl(vm, action, device, name, options):
   if options == None:
     options = ""
   command = "vboxmanage bandwidthctl %s %s %s %s" (vm, action, options)
-  result  = os.popen(command).readlines()
-  return result
+  result  = os.popen(command).read()
+  return (result,command)
 
 
 def main():
@@ -378,77 +378,82 @@ def main():
 
   changed = False
   current = ""
+  other   = ""
+
+  if function == "import":
+    if vm == None:
+      vm = path
 
   if not value == None:
-    current = vboxmanage_showvminfo(vm, param)
+    (current,command) = vboxmanage_showvminfo(vm, param)
     changed = current != str(value)
     if changed and not module.check_mode:
       if function == "modifyvm":
-        vboxmanage_modifyvm(vm, param, value)
+        (other,command) = vboxmanage_modifyvm(vm, param, value)
       if function == "setproperty":
-        vboxmanage_setproperty(param, value)
+        (other,command) = vboxmanage_setproperty(param, value)
       if function == "controlvm":
-        vboxmanage_controlvm(vm, param, value)
+        (other,command) = vboxmanage_controlvm(vm, param, value)
       if function == "startvm":
-        current = vboxmanage_showvminfo(vm, "vmstate")
+        (current,command) = vboxmanage_showvminfo(vm, "vmstate")
         changed = current != "running"
-        vboxmanage_startvm(vm, vmtype, param, value)
+        (other,command) = vboxmanage_startvm(vm, vmtype, param, value)
   else:
     if function == "startvm" or function == "export" or function == "import" or function == "debugvm" or function == "clonevm":
-      current = vboxmanage_showvminfo(vm, "vmstate")
+      (current,command) = vboxmanage_showvminfo(vm, "vmstate")
       if current != "running":
         if function == "export":
-          vboxmanage_export(vm, output, vmtype, options)
+          (other,command) = vboxmanage_export(vm, output, vmtype, options)
         if function == "movevm":
-          vboxmanage_movevm(vm, path, vmtype)
+          (other,command) = vboxmanage_movevm(vm, path, vmtype)
         if function == "clonevm":
-          vboxmanage_movevm(vm, output, vmtype, options)
+          (other,command) = vboxmanage_movevm(vm, output, vmtype, options)
         if function == "import":
-          vboxmanage_import(vm, dryrun, options)
+          (other,command) = vboxmanage_import(vm, dryrun, options)
         if function == "debugvm":
-          vboxmanage_debugvm(vm, options)
+          (other,command) = vboxmanage_debugvm(vm, options)
         if function == "startvm":
           changed = current != "running"
-          vboxmanage_startvm(vm, vmtype, param, value)
+          (other,command) = vboxmanage_startvm(vm, vmtype, param, value)
     else:
       if function == "registervm":
         if not vm == None and path == None:
           path = vm
-        vboxmanage_registervm(path)
+        (other,command) = vboxmanage_registervm(path)
       if function == "encryptmedium":
-        vboxmanage_encryptmedium(path, options)
+        (other,command) = vboxmanage_encryptmedium(path, options)
       if function == "showmediuminfo":
-        vboxmanage_showmediuminfo(device, path)
+        (other,command) = vboxmanage_showmediuminfo(device, path)
       if function == "storagectl":
-        vboxmanage_storagectl(vm, action, device, name, options)
+        (other,command) = vboxmanage_storagectl(vm, action, device, name, options)
       if function == "bandwidthctl":
-        vboxmanage_bandwidthctl(vm, action, device, name, options)
+        (other,command) = vboxmanage_bandwidthctl(vm, action, device, name, options)
       if function == "closemedium":
-        vboxmanage_closemedium(device, path, action)
+        (other,command) = vboxmanage_closemedium(device, path, action)
       if function == "clonemedium":
-        vboxmanage_clonemedium(device, path, output, options)
+        (other,command) = vboxmanage_clonemedium(device, path, output, options)
       if function == "modifymedium":
-        vboxmanage_modifymedium(device, path, options)
+        (other,command) = vboxmanage_modifymedium(device, path, options)
       if function == "mediumproperty":
-        vboxmanage_mediumproperty(device, action, path, param, value)
+        (other,command) = vboxmanage_mediumproperty(device, action, path, param, value)
       if function == "createvm":
-        vboxmanage_createvm(vm, options)
+        (other,command) = vboxmanage_createvm(vm, options)
       if function == "unregistervm":
-        vboxmanage_unregistervm(vm)
+        (other,command) = vboxmanage_unregistervm(vm)
       if function == "usbdevsource":
-        vboxmanage_usbdevsource(action, options)
+        (other,command) = vboxmanage_usbdevsource(action, options)
       if function == "snapshot":
-        vboxmanage_snapshot(vm, action, options)
+        (other,command) = vboxmanage_snapshot(vm, action, options)
       if function == "extpack":
-        vboxmanage_extpack(extpack, options)
+        (other,command) = vboxmanage_extpack(extpack, options)
       if function == "discardstate":
-        vboxmanage_discardstate(vm)
+        (other,command) = vboxmanage_discardstate(vm)
       if function == "adoptstate":
-        vboxmanage_adoptstate(vm, path)
+        (other,command) = vboxmanage_adoptstate(vm, path)
       if function == "showvminfo":
-        current = vboxmanage_showvminfo(vm, param)
+        (current,command) = vboxmanage_showvminfo(vm, param)
       if function == "list":
-        current = vboxmanage_list(param)
+        (current,command) = vboxmanage_list(param)
 
   if changed == None:
     changed = ""
@@ -493,6 +498,7 @@ def main():
     param=param,
     device=device,
     value=value,
+    command=command,
     current=current
   )
 

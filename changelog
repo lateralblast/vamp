@@ -11,3 +11,11 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 ### Added
 - Tue 18 Jun 2019 17:42:17 AEST
   Initial working version
+
+## [0.0.2] - 2019-06-25
+
+### Changed
+
+- Tue 25 Jun 2019 15:23:03 AEST
+  Fixed several functions
+
