@@ -18,4 +18,6 @@ and this project tries to adhere to [Semantic Versioning](https://semver.org/spe
 
 - Tue 25 Jun 2019 15:23:03 AEST
   Fixed several functions
+- Tue 25 Jun 2019 15:45:52 AEST
+  Fixed modifyvm
 

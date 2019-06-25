@@ -389,7 +389,7 @@ def main():
     changed = current != str(value)
     if changed and not module.check_mode:
       if function == "modifyvm":
-        (other,command) = vboxmanage_modifyvm(vm, param, value)
+        (other,command) = vboxmanage_modifyvm(vm, param, name, value)
       if function == "setproperty":
         (other,command) = vboxmanage_setproperty(param, value)
       if function == "controlvm":
