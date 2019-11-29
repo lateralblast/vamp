@@ -44,7 +44,6 @@ Check VM has 2 CPUs:
 
 ```
 - name: Check CPU configuration
-    become:      yes
     vboxmanage:
       vm:       vm_name
       function: modifyvm
