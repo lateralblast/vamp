@@ -1,4 +1,4 @@
-![alt tag](https://raw.githubusercontent.com/lateralblast/vamp/master/vamp.jpg)
+![alt tag](https://raw.githubusercontent.com/lateralblast/vamp/master/images/vamp.jpg)
 
 VAMP
 ====
