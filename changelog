@@ -1,34 +1,12 @@
-# Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project tries to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-## [0.0.1] - 2019-06-18
-
-### Added
-- Tue 18 Jun 2019 17:42:17 AEST
-  Initial working version
-
-## [0.0.2] - 2019-06-25
-
-### Changed
-
-- Tue 25 Jun 2019 15:23:03 AEST
-  Fixed several functions
-- Tue 25 Jun 2019 15:45:52 AEST
-  Fixed modifyvm
-
-## [0.0.3] - 2019-06-25
-
-### Changed
-
-- Tue 25 Jun 2019 16:20:08 AEST
-  More fixes
-
-## [0.0.4] - 2019-11-30
-
-- Sat 30 Nov 2019 10:47:20 AEDT
-  Bug fixes
+# 0.0.1: Tue 18 Jun 2019 17:42:17 AEST
+# Initial working version
+# 0.0.2: Tue 25 Jun 2019 15:23:03 AEST
+# Fixed several functions
+# 0.0.3: Tue 25 Jun 2019 15:45:52 AEST
+# Fixed modifyvm
+# 0.0.4: Tue 25 Jun 2019 16:20:08 AEST
+# More fixes
+# 0.0.5: Sat 30 Nov 2019 10:47:20 AEDT
+# Bug fixes
+# 0.0.6: Wed 13 May 2020 23:12:22 AEST
+# Updated import and clonevm
