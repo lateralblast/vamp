@@ -12,3 +12,5 @@
 # Updated import and clonevm
 # 0.0.7: Sat 16 May 2020 13:51:24 AEST
 # Rewrite of module to make it more flexible
+# 0.0.8: Sat 16 May 2020 15:14:53 AEST
+# Added more keywords
