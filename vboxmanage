@@ -108,7 +108,7 @@ def vboxmanage_importvm(module):
 def vboxmanage_getproperty(module):
   if not module.params['param'] == None:
     if module.params['function'] == "getproperty":
-      command = "vboxmanage showvminfo %s |grep -i \"%s\"" % (module.params['vmname'], module.params['param'])
+      command = 'vboxmanage showvminfo %s |grep -i "%s"' % (module.params['vmname'], module.params['param'])
     else:
       command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'])
   else:
