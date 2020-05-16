@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.0.6
+# Version:      0.0.7
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -15,7 +15,9 @@
 
 from ansible.constants import mk_boolean
 from ansible.module_utils.basic import *
+import subprocess
 import os
+import re
 
 DOCUMENTATION = '''
 ---
@@ -74,498 +76,336 @@ options:
 
 EXAMPLES = '''
 # Set VM memory
-- vboxmanage: function=modify vm=VM_NAME param=memory value=4096 
+- vboxmanage: function=modify vmname=VM_NAME memory=4096 
 # Start VM in headless mode
-- vboxmanage: function=start vm=VM_NAME type=headless
+- vboxmanage: function=start vmname=VM_NAME type=headless
 # Stop VM
-- vboxmanage: function=control vm=VM_NAME param=vmstate value=poweroff
+- vboxmanage: function=control vmname=VM_NAME state=poweroff
 # Export VM
-- vboxmanage: function=export vm=VMNAME output=VM_NAME-export.ova 
+- vboxmanage: function=export vmname=VMNAME output=VM_NAME-export.ova 
 # Import VM
-- vboxmanage: function=import vm=/path/to/VM_IMPORT.ova
+- vboxmanage: function=import filename=/path/to/VM_IMPORT.ova
 '''
+def vboxmanage_other(module):
+  command = "vboxmanage --%s" % (module.params['function'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
 
-def vboxmanage_modifyvm(vm, param, name, value):
-  if re.search("natpf",param):
-    command = "vboxmanage modifyvm %s --%s delete %s ; vboxmanage modifyvm %s --%s %s" % (vm, param, name, vm, param, value)
-  else:
-    command = "vboxmanage modifyvm %s --%s %s" % (vm, param, value)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_createvm(vm, basefolder, group, ostype, uuid, register):
-  if basefolder == None:
-    basefolder = ""
-  else:
-    basefolder = "--basefolder %s" % (basefolder)
-  if ostype == None:
-    ostype = ""
-  else:
-    ostype = "--ostype %s" % (ostype)
-  if uuid == None:
-    uuid = ""
-  else:
-    uuid = "--uuid %s" % (uuid) 
-  if register == True:
-    register = "--register"
-  else:
-    register = ""
-  command = "vboxmanage createvm %s %s %s %s %s" % (device, basefolder, ostype, uuid, register)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_setproperty(param, value):
-  command = "vboxmanage setproperty %s %s" % (param, value)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_closemedium(device, path, action):
-  if action == None:
-    action = ""
-  else:
-    action = "--%s" % (action)
-  command = "vboxmanage closemedium %s %s %s" % (device, path, action)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_showmediuminfo(device, path):
-  command = "vboxmanage showmediuminfo %s %s" % (device, path)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_encryptmedium(path, options):
-  command = "vboxmanage encryptmedium %s %s" % (path, options)
-  result  = os.popen(command).read()
-  return result
-
-def vboxmanage_modifymedium(device, path, options):
-  command = "vboxmanage modifymedium %s %s %s" % (device, path, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_clonemedium(device, path, output, options):
-  command = "vboxmanage modifymedium %s %s %s" % (device, path, output, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_mediumproperty(device, action, path, param, value):
-  if action == "set":
-    command = "vboxmanage mediumproperty %s %s %s %s %s" % (device, action, path, param, value)
-  else:
-    command = "vboxmanage mediumproperty %s %s %s %s" % (device, action, path, param)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_import(vm, dryrun, cpus, memory, ostype, options):
-  if dryrun == True:
+def vboxmanage_importvm(module):
+  if module.params['dryrun'] == "yes":
     dryrun = "--dryrun"
   else:
     dryrun = ""
-  if cpus == None:
-    cpus = ""
-  else:
-    cpus = "--cpus %s" (cpus)
-  if memory == None:
-    memory = ""
-  else:
-    memory = "--memory %s" (memory)
-  if ostype == None:
-    ostype = ""
-  else:
-    ostype = "--ostype %s" (ostype)
-  if options == None:
-    options = ""
-  else:
-    options = "--options %s" % (options)
-  command = "vboxmanage import %s %s %s %s %s %s" % (vm, dryrun, cpus, memory, ostype, options)
-  result  = os.popen(command).read()
-  return (result,command)
+  command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
+  for param in module.params:
+    if not re.search("vmname|function|list", param):
+      value = module.params[param]
+      if value != None:
+        command = "%s %s %s" % (command, param, value)
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
 
-def vboxmanage_export(vm, output, vmtype, options):
-  if vmtype == None:
-    vmtype = ""
-  else:
-    vmtype = "--%s" % (vmtype)
-  if options == None:
-    options = ""
-  else:
-    options = "--options %s" % (options)
-  command = "vboxmanage export %s --output %s %s %s" % (vm, output, vmtype, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_debugvm(vm, options):
-  if options == None:
-    options = ""
-  else:
-    options = "%s" % (options)
-  command = "vboxmanage debugvm %s %s" % (vm, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_controlvm(vm, param, value):
-  if param == "vmstate":
-    command = "vboxmanage controlvm %s %s" % (vm, value)
-  else:
-    command = "vboxmanage controlvm %s %s %s" % (vm, param, value)
-  result  = os.popen(command).read()
-  return result
-
-def vboxmanage_startvm(vm, vmtype, param, value):
-  if vmtype == None:
-    vmtype = ""
-  else:
-    vmtype = "--type %s" % (vmtype)
-  if param == None or value == None:
-    param = ""
-    value = ""
-  else:
-    param = "--putenv %s=%s" % (param, value)
-  command = "vboxmanage startvm %s %s %s" % (vm, vmtype, param)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_showvminfo(vm, param):
-  if param == "snapshotfolder":
-    search = "SnapFldr"
-  else:
-    search = param
-  if not re.search(r"[0-9]$",search) and not re.search(r"vmstate",search):
-    command = "vboxmanage showvminfo '%s' --machinereadable |grep -i '^%s' |cut -f2 -d=" % (vm, search)
-  else:
-    command = "vboxmanage showvminfo '%s' --machinereadable |grep -i '^%s' |head -1 |cut -f2 -d=" % (vm, search)
-  result  = os.popen(command).read()
-  result  = result.replace('"','')
-  result  = result.rstrip("\n")
-  return (result,command)
-
-def vboxmanage_registervm(path):
-  command = "vboxmanage registervm %s" % (path)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_unregistervm(vm):
-  command = "vboxmanage unregistervm %s" % (vm)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_list(value):
-  command = "vboxmanage list %s" % (value)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_extpack(extpack, options):
-  command = "vboxmanage expack %s %s" (options, extpack)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_discardstate(vm):
-  command = "vboxmanage discardstate %s" (vm)
-  result  = os.popen(command).read()
-  return result
-
-def vboxmanage_snapshot(vm, action, options):
-  if options == None:
-    options = ""
-  command = "vboxmanage discardstate %s %s %s" (vm, action, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_adoptstate(vm,path):
-  command = "vboxmanage adoptstate %s %s" (vm, path)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_usbdevsource(action, path, options):
-  if options == None:
-    options = ""
-  if action == "add":
-    action = "add %s" % (path)
-  command = "vboxmanage usbdevsource %s %s" (action, options)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_movevm(vm, output, vmtype):
-  if vmtype == None:
-    vmtype = ""
-  else:
-    vmtype = "--type %s" % (vmtype)
-  if output == None:
-    output = ""
-  else:
-    output = "--folder %s" % (output)
-  command = "vboxmanage movevm %s %s " (vm, vmtype, output)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_clonevm(vm, output, vmtype, options):
-  if vmtype == None:
-    vmtype = ""
-  else:
-    vmtype = "--type %s" % (vmtype)
-  if output == None:
-    output = ""
-  else:
-    output = "--folder %s" % (output)
-  if options == None:
-    options = ""
-  else:
-    options = "--options=%s" % (options)
-  if register == True:
-    register = "--register"
-  else:
-    register = ""
-  command = "vboxmanage clonevm %s %s %s %s %s" (vm, vmtype, output, options, register)
-  result  = os.popen(command).read()
-  return (result,command)
-
-def vboxmanage_storagectl(vm, action, device, name, options):
-  if action == None:
-    action = ""
-  else:
-    if action == "remove":
-      action = "--%s" % (action)
+def vboxmanage_getproperty(module):
+  if not module.params['param'] == None:
+    if module.params['function'] == "getproperty":
+      command = "vboxmanage showvminfo %s |grep %s" % (module.params['vmname'], module.params['param'])
     else:
-      action = "--%s %s" % (action, device)
-  if options == None:
-    options = ""
-  if name == None:
-    name = ""
+      command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'])
   else:
-    name = "--name %s" % (name)
-  command = "vboxmanage storagectl %s %s %s %s" (vm, name, action, options)
-  result  = os.popen(command).read()
-  return (result,command)
+    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+    for param in module.params:
+      if not re.search("vmname|function|list", param):
+        value = module.params[param]
+        if value != None:
+          command = "%s %s" % (command, param)
+  if module.params['search'] != None:
+    commnd = "%s |grep \"%s\"" % (command, module.params['search'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
 
-
-def vboxmanage_bandwidthctl(vm, action, device, name, options):
-  if action == None:
-    action = ""
+def vboxmanage_setproperty(module):
+  if not module.params['param'] == None:
+    command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
   else:
-    if action == "add":
-      action = "%s %s --type %s" % (action, name, device)
+    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+    for param in module.params:
+      if not re.search("vmname|function|list", param):
+        value = module.params[param]
+        if value != None:
+          command = "%s %s %s" % (command, param, value)
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
+
+def vboxmanage_controlvm(module):
+  if module.params['state'] != None:
+    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'], module.params['state'])
+  else:
+    if module.params['param'] != None:
+      command = "%s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
     else:
-      action = "%s %s" % (action, name)
-  if options == None:
-    options = ""
-  command = "vboxmanage bandwidthctl %s %s %s %s" (vm, action, options)
-  result  = os.popen(command).read()
-  return (result,command)
+      command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+      for param in module.params:
+        if not re.search("vmname|function|list", param):
+          value = module.params[param]
+          if value != None:
+            command = "%s %s %s" % (command, param, value)
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
 
+def vboxmanage_list(module):
+  if module.params['param'] != None:
+    if module.params['machinereadable'] == "yes":
+      command = "vboxmanage %s %s --machinereadable" % (module.params['function'], module.params['param'])
+    else:
+      command = "vboxmanage %s %s" % (module.params['function'], module.params['param'])
+  else:
+    if module.params['machinereadable'] == "yes":
+      command = "vboxmanage %s %s --machinereadable" % (module.params['function'], module.params['list'])
+    else:
+      command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
+  if module.params['search'] != None:
+    commnd = "%s |grep \"%s\"" % (command, module.params['search'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
+
+def vboxmanage_createmedium(module):
+  command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['devive'], module.params['filename'])
+  for param in module.params:
+    if not re.search("vmname|function|list", param):
+      value = module.params[param]
+      if value != None:
+        command = "%s %s %s" % (command, param, value)
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
+
+def vboxmanage_closemedium(module):
+  if module.params['uuid'] != None:
+    module.params['filename'] = module.params['uuid']
+  if module.params['delete'] == "yes":
+    command = "vboxmanage %s %s %s --delete" % (module.params['function'], module.params['device'], module.params['filename'])
+  else:
+    command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
+
+def vboxmanage_unregistervm(module):
+  if module.params['delete'] == "yes":
+    command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
+  else:
+    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
+
+def vboxmanage_function(module):
+  command = ""
+  if module.params['param'] != None:
+    if module.params['function'] == "showvminfo":
+      command = "%s %s |grep %s" % (module.params['function'], module.params['vmname'], module.params['param'])
+    else:
+      command = "%s %s --%s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
+  else:
+    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+    for param in module.params:
+      if not re.search("vmname|function|list", param):
+        value = module.params[param]
+        if value != None:
+          if re.search("^yes$", value) and not re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
+            command = "%s --%s" % (command, param)
+          else:
+            command = "%s --%s %s" % (command, param, value)
+  if module.params['suffix'] != None:
+    command = "%s %s" % (command, module.params['suffix'])
+  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  return(process.stdout, process.stderr, process.returncode, command)
 
 def main():
+  fields = {
+    'accelerate2dvideo':        { 'default': None,   'type': 'str' },
+    'accelerate3d':             { 'default': None,   'type': 'str' },
+    'action':                   { 'default': None,   'type': 'str' },
+    'active':                   { 'default': None,   'type': 'str' },
+    'acpi':                     { 'default': None,   'type': 'str' },
+    'add':                      { 'default': None,   'type': 'str' },
+    'apic':                     { 'default': None,   'type': 'str' },
+    'allowlocallogon':          { 'default': None,   'type': 'str' },
+    'autostart-delay':          { 'default': None,   'type': 'str' },
+    'autostart-enabled':        { 'default': None,   'type': 'str' },
+    'bandwidthgroup':           { 'default': None,   'type': 'str' },
+    'basefolder':               { 'default': None,   'type': 'str' },
+    'biosapic':                 { 'default': None,   'type': 'str' },
+    'biosbootmenu':             { 'default': None,   'type': 'str' },
+    'bioslogodisplaytime':      { 'default': None,   'type': 'str' },
+    'bioslogofadein':           { 'default': None,   'type': 'str' },
+    'biospxedebug':             { 'default': None,   'type': 'str' },
+    'bioslogoimagepath':        { 'default': None,   'type': 'str' },
+    'biossystemtimeoffset':     { 'default': None,   'type': 'str' },
+    'boot1':                    { 'default': None,   'type': 'str' },
+    'boot2':                    { 'default': None,   'type': 'str' },
+    'boot3':                    { 'default': None,   'type': 'str' },
+    'boot4':                    { 'default': None,   'type': 'str' },
+    'bootable':                 { 'default': None,   'type': 'str' },
+    'chipset':                  { 'default': None,   'type': 'str' },
+    'comment':                  { 'default': None,   'type': 'str' },
+    'controller':               { 'default': None,   'type': 'str' },
+    'cpu-profile':              { 'default': None,   'type': 'str' },
+    'cpuexecutioncap':          { 'default': None,   'type': 'str' },
+    'cpuhotplug':               { 'default': None,   'type': 'str' },
+    'cpuid':                    { 'default': None,   'type': 'str' },
+    'cpus':                     { 'default': None,   'type': 'str' },
+    'delete':                   { 'default': None,   'type': 'str' },
+    'description':              { 'default': None,   'type': 'str' },
+    'device':                   { 'default': None,   'type': 'str' },
+    'discard':                  { 'default': None,   'type': 'str' },
+    'dryrun':                   { 'default': None,   'type': 'str' },
+    'encodedlun':               { 'default': None,   'type': 'str' },
+    'extpack':                  { 'default': None,   'type': 'str' },
+    'filename':                 { 'default': None,   'type': 'str' },
+    'firmware':                 { 'default': None,   'type': 'str' },
+    'forceunmount':             { 'default': None,   'type': 'str' },
+    'function':                 { 'default': 'list', 'type': 'str' },
+    'graphicscontroller':       { 'default': None,   'type': 'str' },
+    'group':                    { 'default': None,   'type': 'str' },
+    'groups':                   { 'default': None,   'type': 'str' },
+    'guestmemoryballoon':       { 'default': None,   'type': 'str' },
+    'hardwareuuid':             { 'default': None,   'type': 'str' },
+    'hostiocache':              { 'default': None,   'type': 'str' },
+    'hotpluggable':             { 'default': None,   'type': 'str' },
+    'hpet':                     { 'default': None,   'type': 'str' },
+    'hwvirtex':                 { 'default': None,   'type': 'str' },
+    'iconfile':                 { 'default': None,   'type': 'str' },
+    'initiator':                { 'default': None,   'type': 'str' },
+    'intnet':                   { 'default': None,   'type': 'str' },
+    'largepages':               { 'default': None,   'type': 'str' },
+    'list':                     { 'default': 'vms',  'type': 'str' },
+    'longmode':                 { 'default': None,   'type': 'str' },
+    'lun':                      { 'default': None,   'type': 'str' },
+    'machinereadable':          { 'default': None,   'type': 'str' },
+    'medium':                   { 'default': None,   'type': 'str' },
+    'memory':                   { 'default': None,   'type': 'str' },
+    'mtype':                    { 'default': None,   'type': 'str' },
+    'name':                     { 'default': None,   'type': 'str' },
+    'nested-hw-virt':           { 'default': None,   'type': 'str' },
+    'nestedpaging':             { 'default': None,   'type': 'str' },
+    'nonrotational':            { 'default': None,   'type': 'str' },
+    'options':                  { 'default': None,   'type': 'str' },
+    'ostype':                   { 'default': None,   'type': 'str' },
+    'output':                   { 'default': None,   'type': 'str' },
+    'pae':                      { 'default': None,   'type': 'str' },
+    'pagefusion':               { 'default': None,   'type': 'str' },
+    'password':                 { 'default': None,   'type': 'str' },
+    'passwordfile':             { 'default': None,   'type': 'str' },
+    'paravirtprovider':         { 'default': None,   'type': 'str' },
+    'paravirtdebug':            { 'default': None,   'type': 'str' },
+    'path':                     { 'default': None,   'type': 'str' },
+    'param':                    { 'default': None,   'type': 'str' },
+    'passthrough':              { 'default': None,   'type': 'str' },
+    'pciattach':                { 'default': None,   'type': 'str' },
+    'pcidetach':                { 'default': None,   'type': 'str' },
+    'plugcpu':                  { 'default': None,   'type': 'str' },
+    'portcount':                { 'default': None,   'type': 'str' },
+    'unplugcpu':                { 'default': None,   'type': 'str' },
+    'recording':                { 'default': None,   'type': 'str' },
+    'recordingscreens':         { 'default': None,   'type': 'str' },
+    'recordingfile':            { 'default': None,   'type': 'str' },
+    'recordingmaxsize':         { 'default': None,   'type': 'str' },
+    'recordingmaxtime':         { 'default': None,   'type': 'str' },
+    'recordingopts':            { 'default': None,   'type': 'str' },
+    'recordingvideofps':        { 'default': None,   'type': 'str' },
+    'recordingvideorate':       { 'default': None,   'type': 'str' },
+    'recordingvideores':        { 'default': None,   'type': 'str' },
+    'register':                 { 'default': None,   'type': 'str' },
+    'remote':                   { 'default': None,   'type': 'str' },
+    'remove':                   { 'default': None,   'type': 'str' },
+    'removeonsuspend':          { 'default': None,   'type': 'str' },
+    'rename':                   { 'default': None,   'type': 'str' },
+    'rtcuseutc':                { 'default': None,   'type': 'str' },
+    'search':                   { 'default': None,   'type': 'str' },
+    'server':                   { 'default': None,   'type': 'str' },
+    'setparentuuid':            { 'default': None,   'type': 'str' },
+    'settingspw':               { 'default': None,   'type': 'str' },
+    'settingspwfile':           { 'default': None,   'type': 'str' },
+    'setuuid':                  { 'default': None,   'type': 'str' },
+    'snapshotfolder':           { 'default': None,   'type': 'str' },
+    'spec-ctrl':                { 'default': None,   'type': 'str' },
+    'state':                    { 'default': None,   'type': 'str' },
+    'system-uuid-le':           { 'default': None,   'type': 'str' },
+    'target':                   { 'default': None,   'type': 'str' },
+    'teleporter':               { 'default': None,   'type': 'str' },
+    'teleporteaddress':         { 'default': None,   'type': 'str' },
+    'teleporterassword':        { 'default': None,   'type': 'str' },
+    'teleporterasswordfile':    { 'default': None,   'type': 'str' },
+    'teleporterport':           { 'default': None,   'type': 'str' },
+    'tempeject':                { 'default': None,   'type': 'str' },
+    'tport':                    { 'default': None,   'type': 'str' },
+    'tracing-allow-vm-access':  { 'default': None,   'type': 'str' },
+    'tracing-config':           { 'default': None,   'type': 'str' },
+    'tracing-enabled':          { 'default': None,   'type': 'str' },
+    'type':                     { 'default': None,   'type': 'str' },
+    'usbcardreader':            { 'default': None,   'type': 'str' },
+    'username':                 { 'default': None,   'type': 'str' },
+    'uuid':                     { 'default': None,   'type': 'str' },
+    'value':                    { 'default': None,   'type': 'str' },
+    'vm-process-priority':      { 'default': None,   'type': 'str' },
+    'vmname':                   { 'default': None,   'type': 'str' },
+    'vmram':                    { 'default': None,   'type': 'str' },
+    'vrde':                     { 'default': None,   'type': 'str' },
+    'vrdeextpack':              { 'default': None,   'type': 'str' },
+    'vrdeaddress':              { 'default': None,   'type': 'str' },
+    'vrdeauthtype':             { 'default': None,   'type': 'str' },
+    'vrdeauthlibrary':          { 'default': None,   'type': 'str' },
+    'vrdemulticon':             { 'default': None,   'type': 'str' },
+    'vrdeport':                 { 'default': None,   'type': 'str' },
+    'vrdeproperty':             { 'default': None,   'type': 'str' },
+    'vrdereusecon':             { 'default': None,   'type': 'str' },
+    'vrdevideochannel':         { 'default': None,   'type': 'str' },
+    'vrdevideochannelquality':  { 'default': None,   'type': 'str' },
+    'vtxux':                    { 'default': None,   'type': 'str' },
+    'vtxvpid':                  { 'default': None,   'type': 'str' },
+    'x2apic':                   { 'default': None,   'type': 'str' }, 
+    'suffix':                   { 'default': None,   'type': 'str' },
+  }
+  module = AnsibleModule(argument_spec = fields)
 
-  module = AnsibleModule(
-    argument_spec = {
-      'vm':           { 'type': 'str' },
-      'cpus':         { 'type': 'str' },
-      'memory':       { 'type': 'str' },
-      'name':         { 'type': 'str' },
-      'ostype':       { 'type': 'str' },
-      'function':     { 'type': 'str' },
-      'action':       { 'type': 'str' },
-      'dryrun':       { 'type': 'str' },
-      'options':      { 'type': 'str' },
-      'output':       { 'type': 'str' },
-      'path':         { 'type': 'str' },
-      'type':         { 'type': 'str' },
-      'name':         { 'type': 'str' },
-      'param':        { 'type': 'str' },
-      'device':       { 'type': 'str' },
-      'register':     { 'type': 'str' },
-      'uuid':         { 'type': 'str' },
-      'description':  { 'type': 'str' },
-      'basefolder':   { 'type': 'str' },
-      'value':        { 'type': 'str' }
-    }, 
-    supports_check_mode=True
-  )
+  function = module.params['function']
+  function = re.sub("^modify$", "modifyvm", function)
+  function = re.sub("^control$", "controlvm", function)
+  function = re.sub("^create$", "createvm", function)
+  function = re.sub("^import$", "importvm", function)
+  function = re.sub("^unregister$", "vm", function)
+#  function = re.sub("^$", "vm", function)
+  module.params['function'] = function
 
-  vm          = module.params['vm']
-  cpus        = module.params['cpus']
-  memory      = module.params['memory']
-  name        = module.params['name']
-  ostype      = module.params['ostype']
-  function    = module.params['function']
-  action      = module.params['action']
-  param       = module.params['param']
-  value       = module.params['value']
-  dryrun      = module.params['dryrun']
-  options     = module.params['options']
-  output      = module.params['output']
-  path        = module.params['path']
-  vmtype      = module.params['type']
-  name        = module.params['name']
-  device      = module.params['device']
-  register    = module.params['register']
-  uuid        = module.params['uuid']
-  basefolder  = module.params['basefolder']
-  description = module.params['device']
-  if function == "modify":
-    function = "modifyvm"
-  if function == "create":
-    function = "createvm"
-  if function == "register":
-    function = "registervm"
-  if function == "unregister":
-    function = "unregistervm"
-  if function == "start":
-    function = "startvm"
-  if function == "clone":
-    function = "clonevm"
-  if function == "move":
-    function = "movevm"
-  if function == "debug":
-    function = "debugvm"
-  if function == "control":
-    function = "controlvm"
-  if function == "importvm":
-    function = "import"
-  if function == "exportvm":
-    function = "export"
-  if not name == None and not function == "modifyvm":
-    value = name
-  if register == "yes" or register == True:
-    register = True
+  if function == "version":
+    (stdout, stderr, rc, command) = vboxmanage_other(module)
   else:
-    register = False
-  if dryrun == "yes" or dryrun == True:
-    dryrun = True
-  else:
-    dryrun = False
-
-  changed = False
-  current = ""
-  other   = ""
-
-  if function == "import":
-    if vm == None:
-      vm = path
-
-  if not value == None:
-    (current,command) = vboxmanage_showvminfo(vm, param)
-    changed = current != str(value)
-    if changed and not module.check_mode:
-      if function == "modifyvm":
-        (other,command) = vboxmanage_modifyvm(vm, param, name, value)
-      if function == "setproperty":
-        (other,command) = vboxmanage_setproperty(param, value)
-      if function == "controlvm":
-        (other,command) = vboxmanage_controlvm(vm, param, value)
-      if function == "startvm":
-        (current,command) = vboxmanage_showvminfo(vm, "vmstate")
-        changed = current != "running"
-        (other,command) = vboxmanage_startvm(vm, vmtype, param, value)
-  else:
-    if function == "startvm" or function == "export" or function == "import" or function == "debugvm" or function == "clonevm":
-      (current,command) = vboxmanage_showvminfo(vm, "vmstate")
-      if current != "running":
-        if function == "export":
-          (other,command) = vboxmanage_export(vm, output, vmtype, options)
-        if function == "movevm":
-          (other,command) = vboxmanage_movevm(vm, path, vmtype)
-        if function == "clonevm":
-          (other,command) = vboxmanage_movevm(vm, output, vmtype, options)
-        if function == "import":
-          (other,command) = vboxmanage_import(vm, dryrun, cpus, memory, ostype, options)
-        if function == "debugvm":
-          (other,command) = vboxmanage_debugvm(vm, options)
-        if function == "startvm":
-          changed = current != "running"
-          (other,command) = vboxmanage_startvm(vm, vmtype, param, value)
+    if function == "list":
+      (stdout, stderr, rc, command) = vboxmanage_list(module)
     else:
-      if function == "registervm":
-        if not vm == None and path == None:
-          path = vm
-        (other,command) = vboxmanage_registervm(path)
-      if function == "encryptmedium":
-        (other,command) = vboxmanage_encryptmedium(path, options)
-      if function == "showmediuminfo":
-        (other,command) = vboxmanage_showmediuminfo(device, path)
-      if function == "storagectl":
-        (other,command) = vboxmanage_storagectl(vm, action, device, name, options)
-      if function == "bandwidthctl":
-        (other,command) = vboxmanage_bandwidthctl(vm, action, device, name, options)
-      if function == "closemedium":
-        (other,command) = vboxmanage_closemedium(device, path, action)
-      if function == "clonemedium":
-        (other,command) = vboxmanage_clonemedium(device, path, output, options)
-      if function == "modifymedium":
-        (other,command) = vboxmanage_modifymedium(device, path, options)
-      if function == "mediumproperty":
-        (other,command) = vboxmanage_mediumproperty(device, action, path, param, value)
-      if function == "createvm":
-        (other,command) = vboxmanage_createvm(vm, basefolder, group, ostype, uuid, register)
-      if function == "unregistervm":
-        (other,command) = vboxmanage_unregistervm(vm)
-      if function == "usbdevsource":
-        (other,command) = vboxmanage_usbdevsource(action, options)
-      if function == "snapshot":
-        (other,command) = vboxmanage_snapshot(vm, action, options)
-      if function == "extpack":
-        (other,command) = vboxmanage_extpack(extpack, options)
-      if function == "discardstate":
-        (other,command) = vboxmanage_discardstate(vm)
-      if function == "adoptstate":
-        (other,command) = vboxmanage_adoptstate(vm, path)
-      if function == "showvminfo":
-        (current,command) = vboxmanage_showvminfo(vm, param)
-      if function == "list":
-        (current,command) = vboxmanage_list(param)
-
-  if changed == None:
-    changed = ""
-  if vm == None:
-    vm = ""
-  if cpus == None:
-    cpus = ""
-  if memory == None:
-    memory = ""
-  if ostype == None:
-    ostype = ""
-  if desription == None:
-    description = ""
-  if function == None:
-    function = ""
-  if action == None:
-    action = ""
-  if dryrun == None:
-    dryrun = ""
-  if options  == None:
-    options = ""
-  if output == None:
-    output = ""
-  if path == None:
-    path = ""
-  if vmtype == None:
-    vmtype = ""
-  if name == None:
-    name = ""
-  if param == None:
-    param = ""
-  if device == None:
-    device = ""
-  if value == None:
-    value = ""
-  if current == None:
-    current = ""
+      if function == "controlvm":
+        (stdout, stderr, rc, command) = vboxmanage_controlvm(module)
+      else:
+        if function == "importvm":
+          (stdout, stderr, rc, command) = vboxmanage_importvm(module)
+        else:   
+          if re.search("setproperty|setextrdata", function):
+            (stdout, stderr, rc, command) = vboxmanage_setproperty(module)
+          else:
+            if re.search("getproperty|getextrdata", function):
+              (stdout, stderr, rc, command) = vboxmanage_getproperty(module)
+            else:
+              if function == "closemedium":
+                (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
+              else:
+                (stdout, stderr, rc, command) = vboxmanage_function(module)
 
   module.exit_json(
-    changed=changed,
-    vm=vm,
-    function=function,
-    action=action,
-    dryrun=dryrun,
-    options=options,
-    output=output,
-    path=path,
-    type=vmtype,
-    name=name,
-    param=param,
-    device=device,
-    value=value,
-    command=command,
-    current=current
+    changed = True, 
+    stdout  = stdout, 
+    stderr  = stderr, 
+    rc      = rc, 
+    command = command, 
+    meta    = module.params
   )
 
-main()
+if __name__ == '__main__':
+  main()

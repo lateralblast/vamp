@@ -10,3 +10,5 @@
 # Bug fixes
 # 0.0.6: Wed 13 May 2020 23:12:22 AEST
 # Updated import and clonevm
+# 0.0.7: Sat 16 May 2020 13:51:24 AEST
+# Rewrite of module to make it more flexible
