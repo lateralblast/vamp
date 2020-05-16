@@ -211,7 +211,7 @@ def vboxmanage_function(module):
   if module.params['suffix'] != None:
     command = "%s %s" % (command, module.params['suffix'])
   if module.params['search'] != None:
-    command = "%s |grep -i \"%s\"" % (command, module.params['search'])
+    command = '%s |grep -i "%s"' % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
