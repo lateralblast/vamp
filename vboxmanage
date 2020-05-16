@@ -92,7 +92,7 @@ def vboxmanage_other(module):
   return(process.stdout, process.stderr, process.returncode, command)
 
 def vboxmanage_importvm(module):
-  if module.params['dryrun'] == "yes":
+  if module.params['dryrun'] == True:
     dryrun = "--dryrun"
   else:
     dryrun = ""
@@ -119,7 +119,7 @@ def vboxmanage_getproperty(module):
         if value != None:
           command = "%s %s" % (command, param)
   if module.params['search'] != None:
-    commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
+    command = '%s |grep -i "%s"' % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -153,21 +153,12 @@ def vboxmanage_controlvm(module):
   return(process.stdout, process.stderr, process.returncode, command)
 
 def vboxmanage_list(module):
-  if module.params['param'] != None:
-    if module.params['machinereadable'] == "yes":
-      command = "vboxmanage %s %s --machinereadable" % (module.params['function'], module.params['param'])
-    else:
-      command = "vboxmanage %s %s" % (module.params['function'], module.params['param'])
+  command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
+  if module.params['search'] != None:
+    command = '%s |grep -i "%s"' % (command, module.params['search'])
   else:
-    if module.params['machinereadable'] == "yes":
-      command = "vboxmanage %s %s --machinereadable" % (module.params['function'], module.params['list'])
-    else:
-      command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
-  if module.params['param'] != None:
-    commnd = "%s |grep -i \"%s\"" % (command, module.params['param'])
-  else:
-    if module.params['search'] != None:
-      commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
+    if module.params['param'] != None:
+      command = '%s |grep -i "%s"' % (command, module.params['param'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -184,7 +175,7 @@ def vboxmanage_createmedium(module):
 def vboxmanage_closemedium(module):
   if module.params['uuid'] != None:
     module.params['filename'] = module.params['uuid']
-  if module.params['delete'] == "yes":
+  if module.params['delete'] == True:
     command = "vboxmanage %s %s %s --delete" % (module.params['function'], module.params['device'], module.params['filename'])
   else:
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
@@ -192,7 +183,7 @@ def vboxmanage_closemedium(module):
   return(process.stdout, process.stderr, process.returncode, command)
 
 def vboxmanage_unregistervm(module):
-  if module.params['delete'] == "yes":
+  if module.params['delete'] == True:
     command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
@@ -212,14 +203,15 @@ def vboxmanage_function(module):
       if not re.search("vmname|function|list", param):
         value = module.params[param]
         if value != None:
-          if re.search("^yes$", value) and not re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
-            command = "%s --%s" % (command, param)
-          else:
-            command = "%s --%s %s" % (command, param, value)
+          if re.search("^yes$", value) or value == True:
+            if re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
+              command = "%s --%s" % (command, param)
+            else:
+              command = "%s --%s %s" % (command, param, value)
   if module.params['suffix'] != None:
     command = "%s %s" % (command, module.params['suffix'])
   if module.params['search'] != None:
-    commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
+    command = "%s |grep -i \"%s\"" % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -294,7 +286,7 @@ def main():
     'createtemp':                 { 'default': None,   'type': 'str' },
     'createtemporary':            { 'default': None,   'type': 'str' },
     'defaultfrontend':            { 'default': None,   'type': 'str' },
-    'delete':                     { 'default': None,   'type': 'str' },
+    'delete':                     { 'default': False,  'type': 'bool' },
     'description':                { 'default': None,   'type': 'str' },
     'device':                     { 'default': None,   'type': 'str' },
     'dhcp':                       { 'default': None,   'type': 'str' },
@@ -302,7 +294,7 @@ def main():
     'discard':                    { 'default': None,   'type': 'str' },
     'domain':                     { 'default': None,   'type': 'str' },
     'draganddrop':                { 'default': None,   'type': 'str' },
-    'dryrun':                     { 'default': None,   'type': 'str' },
+    'dryrun':                     { 'default': False,  'type': 'bool' },
     'enable':                     { 'default': None,   'type': 'str' },
     'encodedlun':                 { 'default': None,   'type': 'str' },
     'eula':                       { 'default': None,   'type': 'str' },
@@ -315,7 +307,7 @@ def main():
     'forceunmount':               { 'default': None,   'type': 'str' },
     'format':                     { 'default': None,   'type': 'str' },
     'function':                   { 'default': 'list', 'type': 'str' },
-    'global':                     { 'default': 'list', 'type': 'str' },
+    'global':                     { 'default': None,   'type': 'str' },
     'graphicscontroller':         { 'default': None,   'type': 'str' },
     'group':                      { 'default': None,   'type': 'str' },
     'groups':                     { 'default': None,   'type': 'str' },
@@ -360,7 +352,7 @@ def main():
     'macaddress3':                { 'default': None,   'type': 'str' },
     'macaddress4':                { 'default': None,   'type': 'str' },
     'machinefolder':              { 'default': None,   'type': 'str' },
-    'machinereadable':            { 'default': None,   'type': 'str' },
+    'machinereadable':            { 'default': False,  'type': 'bool' },
     'manufacturer':               { 'default': None,   'type': 'str' },
     'maskedinterfaces':           { 'default': None,   'type': 'str' },
     'medium':                     { 'default': None,   'type': 'str' },
@@ -590,7 +582,7 @@ def main():
   function = re.sub("^control$", "controlvm", function)
   function = re.sub("^create$", "createvm", function)
   function = re.sub("^import$", "importvm", function)
-  function = re.sub("^unregister$", "vm", function)
+  function = re.sub("^unregister$", "unregistervm", function)
 #  function = re.sub("^$", "vm", function)
   module.params['function'] = function
 
@@ -617,8 +609,11 @@ def main():
               else:
                 (stdout, stderr, rc, command) = vboxmanage_function(module)
 
+  if len(stdout) == 0 and len(stderr) > 0:
+    stdout = stderr
+
   module.exit_json(
-    changed = True, 
+    changed = True,
     stdout  = stdout, 
     stderr  = stderr, 
     rc      = rc, 
