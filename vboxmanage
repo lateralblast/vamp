@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.0.8
+# Version:      0.0.9
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -108,7 +108,7 @@ def vboxmanage_importvm(module):
 def vboxmanage_getproperty(module):
   if not module.params['param'] == None:
     if module.params['function'] == "getproperty":
-      command = "vboxmanage showvminfo %s |grep %s" % (module.params['vmname'], module.params['param'])
+      command = "vboxmanage showvminfo %s |grep -i \"%s\"" % (module.params['vmname'], module.params['param'])
     else:
       command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'])
   else:
@@ -119,7 +119,7 @@ def vboxmanage_getproperty(module):
         if value != None:
           command = "%s %s" % (command, param)
   if module.params['search'] != None:
-    commnd = "%s |grep \"%s\"" % (command, module.params['search'])
+    commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -163,8 +163,11 @@ def vboxmanage_list(module):
       command = "vboxmanage %s %s --machinereadable" % (module.params['function'], module.params['list'])
     else:
       command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
-  if module.params['search'] != None:
-    commnd = "%s |grep \"%s\"" % (command, module.params['search'])
+  if module.params['param'] != None:
+    commnd = "%s |grep -i \"%s\"" % (command, module.params['param'])
+  else:
+    if module.params['search'] != None:
+      commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -200,9 +203,9 @@ def vboxmanage_function(module):
   command = ""
   if module.params['param'] != None:
     if module.params['function'] == "showvminfo":
-      command = "%s %s |grep %s" % (module.params['function'], module.params['vmname'], module.params['param'])
+      command = "vboxmanage %s %s |grep -i %s" % (module.params['function'], module.params['vmname'], module.params['param'])
     else:
-      command = "%s %s --%s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
+      command = "vboxmanage %s %s --%s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
@@ -215,6 +218,8 @@ def vboxmanage_function(module):
             command = "%s --%s %s" % (command, param, value)
   if module.params['suffix'] != None:
     command = "%s %s" % (command, module.params['suffix'])
+  if module.params['search'] != None:
+    commnd = "%s |grep -i \"%s\"" % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
@@ -548,6 +553,7 @@ def main():
     'vendorid':                   { 'default': None,   'type': 'str' },
     'vendorurl':                  { 'default': None,   'type': 'str' },
     'vm-process-priority':        { 'default': None,   'type': 'str' },
+    'vm':                         { 'default': None,   'type': 'str' },
     'vmname':                     { 'default': None,   'type': 'str' },
     'vmram':                      { 'default': None,   'type': 'str' },
     'vrde':                       { 'default': None,   'type': 'str' },
@@ -575,6 +581,9 @@ def main():
     'suffix':                     { 'default': None,   'type': 'str' }
   }
   module = AnsibleModule(argument_spec = fields)
+
+  if module.params['vm'] != None:
+    module.params['vmname'] = module.params['vmname']
 
   function = module.params['function']
   function = re.sub("^modify$", "modifyvm", function)

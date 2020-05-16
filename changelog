@@ -14,3 +14,5 @@
 # Rewrite of module to make it more flexible
 # 0.0.8: Sat 16 May 2020 15:14:53 AEST
 # Added more keywords
+# 0.0.9: Sat 16 May 2020 15:38:58 AEST
+# Added handling for search
