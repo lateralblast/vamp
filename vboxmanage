@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.2
+# Version:      0.1.3
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -106,9 +106,9 @@ def vboxmanage_importvm(module):
     dryrun = ""
   command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|filename|execute|dry-run", param):
+    if not re.search("function|list|machinereadable|filename|execute|dry-run|delete", param):
       value = module.params[param]
-      if value != None and value != False:
+      if value != None:
         command = "%s --%s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -127,7 +127,7 @@ def vboxmanage_getproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
         value = module.params[param]
         if value != None:
           if value == True:
