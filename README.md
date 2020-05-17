@@ -45,7 +45,7 @@ Check VM has 2 CPUs:
 ```
 - name: Check CPU configuration
     vboxmanage:
-      vm:       vm_name
+      vmname:   vm_name
       function: modifyvm
       param:    cpus
       value:    "2"
@@ -56,7 +56,7 @@ Check VM has 8G:
 ```
 - name: Check memory configuration
     vboxmanage:
-      vm:       vm_nsme
+      vmname:   vm_nsme
       function: modifyvm
       param:    memory
       value:    "8192"
@@ -77,7 +77,7 @@ Check VM Snapshot Folder:
 ```
 - name: Check VM Snapshot Folder
     vboxmanage:
-      vm:       vm_name
+      vmname:   vm_name
       function: modifyvm
       param:    snapshotfolder
       value:    /snapshotdir
@@ -88,7 +88,7 @@ Check VM Running state and register it:
 ```
 - name: Check VM running state and register it
   vboxmanage:
-    vm:       vm_name
+    vmname:   vm_name
     function: showvminfo
     param:    vmstate
   register:   vm_state
@@ -99,7 +99,7 @@ Check hostonly network has been set for NIC1:
 ```
 - name: Check Bundle Host-only Network has been set
   vboxmanage:
-    vm:        vm_name
+    vmname:    vm_name
     function:  modifyvm
     param:     nic1
     value:     hostonly
@@ -112,7 +112,7 @@ Check NAT network has been set for NIC2:
 ```
 - name: Check NAT Network has been set 
   vboxmanage:
-    vm:        vm_anme
+    vmname:    vm_anme
     function:  modifyvm
     param:     nic2
     value:     nat
@@ -125,7 +125,7 @@ Get NAT rules and register them:
 ```
 - name: Check NAT Network Rules
   vboxmanage:
-    vm:        vm_name
+    vmname:    vm_name
     function:  showvminfo
     param:     forwarding
   register:    nat_rules
@@ -136,7 +136,7 @@ Check NAT rules have been applied:
 ```
 - name: Check NAT Rules
   vboxmanage:
-    vm:        vm_name
+    vmname:    vm_name
     function:  modifyvm
     param:     natf2
     name:      "{{ item.rule }}"
@@ -145,4 +145,15 @@ Check NAT rules have been applied:
   loop:
     - { rule: "rule1", nat_string: "rule1,tcp,,2222,,22" }
     - { rule: "rule2", nat_string: "rule2,tcp,,8080,,8080" }
+```
+
+Run without executing (useful for debugging):
+
+```
+- name: Unregister VM
+  vboxmanage:
+    function:     unregister 
+    vmname:       vm_name
+    delete:       yes
+    execute:      no
 ```

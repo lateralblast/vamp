@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.1
+# Version:      0.1.2
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -91,24 +91,30 @@ EXAMPLES = '''
 
 def vboxmanage_other(module):
   command = "vboxmanage --%s" % (module.params['function'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Import VirtualBox VM
 
 def vboxmanage_importvm(module):
   if module.params['dryrun'] == True:
-    dryrun = "--dryrun"
+    dryrun = "--dry-run"
   else:
     dryrun = ""
   command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|dryrun|filename", param):
+    if not re.search("vmname|function|list|machinereadable|dryrun|filename|execute|dry-run", param):
       value = module.params[param]
       if value != None and value != False:
         command = "%s --%s %s" % (command, param, value)
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Get VirtualBox property
 
@@ -121,7 +127,7 @@ def vboxmanage_getproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
         value = module.params[param]
         if value != None:
           if value == True:
@@ -131,8 +137,11 @@ def vboxmanage_getproperty(module):
           command = "%s %s" % (command, param)
   if module.params['search'] != None:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Set VirtualBox property
 
@@ -142,7 +151,7 @@ def vboxmanage_setproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
         value = module.params[param]
         if value != None:
           if value == True:
@@ -150,8 +159,11 @@ def vboxmanage_setproperty(module):
           if value == False:
             value = "no"
           command = "%s %s %s" % (command, param, value)
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Control VirtualBox VM
 
@@ -164,7 +176,7 @@ def vboxmanage_controlvm(module):
     else:
       command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
       for param in module.params:
-        if not re.search("vmname|function|list", param):
+        if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
           value = module.params[param]
           if value != None:
             if value == True:
@@ -172,8 +184,11 @@ def vboxmanage_controlvm(module):
             if value == False:
               value = "no"
             command = "%s %s %s" % (command, param, value)
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Handle VirtualBox list function
 
@@ -184,20 +199,26 @@ def vboxmanage_list(module):
   else:
     if module.params['param'] != None:
       command = '%s |grep -i "%s"' % (command, module.params['param'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Handle VirtualBox createmedium function
 
 def vboxmanage_createmedium(module):
   command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['devive'], module.params['filename'])
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable", param):
+    if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
       value = module.params[param]
       if value != None and value != False:
         command = "%s %s %s" % (command, param, value)
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Handle VirtualBox closemedium function
 
@@ -208,8 +229,11 @@ def vboxmanage_closemedium(module):
     command = "vboxmanage %s %s %s --delete" % (module.params['function'], module.params['device'], module.params['filename'])
   else:
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Handle VirtualBox unregistervm function
 
@@ -218,8 +242,11 @@ def vboxmanage_unregistervm(module):
     command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Handle other VirtualBox functions
 
@@ -233,7 +260,7 @@ def vboxmanage_function(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
         value = module.params[param]
         if value != None:
           if re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
@@ -248,8 +275,11 @@ def vboxmanage_function(module):
     command = "%s %s" % (command, module.params['suffix'])
   if module.params['search'] != None:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
-  process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  return(process.stdout, process.stderr, process.returncode, command)
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
 
 # Main routine - Get anisible module parameters, call functions and exit
 
@@ -332,12 +362,13 @@ def main():
     'discard':                    { 'default': None,   'type': 'str' },
     'domain':                     { 'default': None,   'type': 'str' },
     'draganddrop':                { 'default': None,   'type': 'str' },
-    'dryrun':                     { 'default': False,  'type': 'bool' },
+    'dry-run':                    { 'default': False,  'type': 'bool' },
     'enable':                     { 'default': None,   'type': 'str' },
     'encodedlun':                 { 'default': None,   'type': 'str' },
     'eula':                       { 'default': None,   'type': 'str' },
     'eulafile':                   { 'default': None,   'type': 'str' },
     'exe':                        { 'default': None,   'type': 'str' },
+    'execute':                    { 'default': True,   'type': 'str' },
     'extpack':                    { 'default': None,   'type': 'str' },
     'filename':                   { 'default': None,   'type': 'str' },
     'firmware':                   { 'default': None,   'type': 'str' },

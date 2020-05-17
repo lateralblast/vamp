@@ -20,3 +20,5 @@
 # Cleaned up code
 # 0.1.1: Sun 17 May 2020 12:07:25 AEST
 # Clean up and bug fixes
+# 0.1.2: Sun 17 May 2020 12:31:54 AEST
+# Added execute flag to assist with debugging
