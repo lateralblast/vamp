@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.0.9
+# Version:      0.1.1
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -86,10 +86,15 @@ EXAMPLES = '''
 # Import VM
 - vboxmanage: function=import filename=/path/to/VM_IMPORT.ova
 '''
+
+# Handle simple VirtualBox functions like version
+
 def vboxmanage_other(module):
   command = "vboxmanage --%s" % (module.params['function'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Import VirtualBox VM
 
 def vboxmanage_importvm(module):
   if module.params['dryrun'] == True:
@@ -98,12 +103,14 @@ def vboxmanage_importvm(module):
     dryrun = ""
   command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
   for param in module.params:
-    if not re.search("vmname|function|list", param):
+    if not re.search("vmname|function|list|machinereadable|dryrun|filename", param):
       value = module.params[param]
-      if value != None:
-        command = "%s %s %s" % (command, param, value)
+      if value != None and value != False:
+        command = "%s --%s %s" % (command, param, value)
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Get VirtualBox property
 
 def vboxmanage_getproperty(module):
   if not module.params['param'] == None:
@@ -114,14 +121,20 @@ def vboxmanage_getproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list", param):
+      if not re.search("vmname|function|list|machinereadable", param):
         value = module.params[param]
         if value != None:
+          if value == True:
+            value = "yes"
+          if value == False:
+            value = "no"
           command = "%s %s" % (command, param)
   if module.params['search'] != None:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Set VirtualBox property
 
 def vboxmanage_setproperty(module):
   if not module.params['param'] == None:
@@ -129,12 +142,18 @@ def vboxmanage_setproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list", param):
+      if not re.search("vmname|function|list|machinereadable", param):
         value = module.params[param]
         if value != None:
+          if value == True:
+            value = "yes"
+          if value == False:
+            value = "no"
           command = "%s %s %s" % (command, param, value)
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Control VirtualBox VM
 
 def vboxmanage_controlvm(module):
   if module.params['state'] != None:
@@ -148,9 +167,15 @@ def vboxmanage_controlvm(module):
         if not re.search("vmname|function|list", param):
           value = module.params[param]
           if value != None:
+            if value == True:
+              value = "yes"
+            if value == False:
+              value = "no"
             command = "%s %s %s" % (command, param, value)
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Handle VirtualBox list function
 
 def vboxmanage_list(module):
   command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
@@ -162,15 +187,19 @@ def vboxmanage_list(module):
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
+# Handle VirtualBox createmedium function
+
 def vboxmanage_createmedium(module):
   command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['devive'], module.params['filename'])
   for param in module.params:
-    if not re.search("vmname|function|list", param):
+    if not re.search("vmname|function|list|machinereadable", param):
       value = module.params[param]
-      if value != None:
+      if value != None and value != False:
         command = "%s %s %s" % (command, param, value)
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Handle VirtualBox closemedium function
 
 def vboxmanage_closemedium(module):
   if module.params['uuid'] != None:
@@ -182,6 +211,8 @@ def vboxmanage_closemedium(module):
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
 
+# Handle VirtualBox unregistervm function
+
 def vboxmanage_unregistervm(module):
   if module.params['delete'] == True:
     command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
@@ -189,6 +220,8 @@ def vboxmanage_unregistervm(module):
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Handle other VirtualBox functions
 
 def vboxmanage_function(module):
   command = ""
@@ -200,20 +233,25 @@ def vboxmanage_function(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list", param):
+      if not re.search("vmname|function|list|machinereadable", param):
         value = module.params[param]
         if value != None:
-          if re.search("^yes$", value) or value == True:
-            if re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
-              command = "%s --%s" % (command, param)
-            else:
-              command = "%s --%s %s" % (command, param, value)
+          if re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
+            command = "%s --%s" % (command, param)
+          else:
+            if value == True:
+              value = "yes"
+            if value == False:
+              value = "no"
+            command = "%s --%s %s" % (command, param, value)
   if module.params['suffix'] != None:
     command = "%s %s" % (command, module.params['suffix'])
   if module.params['search'] != None:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
   process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   return(process.stdout, process.stderr, process.returncode, command)
+
+# Main routine - Get anisible module parameters, call functions and exit
 
 def main():
   fields = {
@@ -581,7 +619,8 @@ def main():
   function = re.sub("^modify$", "modifyvm", function)
   function = re.sub("^control$", "controlvm", function)
   function = re.sub("^create$", "createvm", function)
-  function = re.sub("^import$", "importvm", function)
+  function = re.sub("^importvm$", "import", function)
+  function = re.sub("^register$", "registervm", function)
   function = re.sub("^unregister$", "unregistervm", function)
 #  function = re.sub("^$", "vm", function)
   module.params['function'] = function
@@ -595,7 +634,7 @@ def main():
       if function == "controlvm":
         (stdout, stderr, rc, command) = vboxmanage_controlvm(module)
       else:
-        if function == "importvm":
+        if function == "import":
           (stdout, stderr, rc, command) = vboxmanage_importvm(module)
         else:   
           if re.search("setproperty|setextrdata", function):
