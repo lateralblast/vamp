@@ -368,7 +368,7 @@ def main():
     'eula':                       { 'default': None,   'type': 'str' },
     'eulafile':                   { 'default': None,   'type': 'str' },
     'exe':                        { 'default': None,   'type': 'str' },
-    'execute':                    { 'default': True,   'type': 'str' },
+    'execute':                    { 'default': True,   'type': 'bool' },
     'extpack':                    { 'default': None,   'type': 'str' },
     'filename':                   { 'default': None,   'type': 'str' },
     'firmware':                   { 'default': None,   'type': 'str' },
