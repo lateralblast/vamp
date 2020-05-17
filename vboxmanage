@@ -176,7 +176,7 @@ def vboxmanage_controlvm(module):
     else:
       command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
       for param in module.params:
-        if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
+        if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
           value = module.params[param]
           if value != None:
             if value == True:
@@ -260,10 +260,10 @@ def vboxmanage_function(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
         value = module.params[param]
         if value != None:
-          if re.search("removeonsuspend|active|remote|allowlocallogon|delete", param):
+          if re.search("removeonsuspend|active|remote|allowlocallogon", param):
             command = "%s --%s" % (command, param)
           else:
             if value == True:
