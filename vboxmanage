@@ -27,7 +27,7 @@ short_description: Automate VirtualBox command line
 dewscription: 
   - Automate VirtualBox command line
 options:
-  dryrun:
+  dry-run:
     description:
       - Used with import to perform a dry run (don't import)
   options:
@@ -100,13 +100,13 @@ def vboxmanage_other(module):
 # Import VirtualBox VM
 
 def vboxmanage_importvm(module):
-  if module.params['dryrun'] == True:
+  if module.params['dry-run'] == True:
     dryrun = "--dry-run"
   else:
     dryrun = ""
   command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|dryrun|filename|execute|dry-run", param):
+    if not re.search("vmname|function|list|machinereadable|filename|execute|dry-run", param):
       value = module.params[param]
       if value != None and value != False:
         command = "%s --%s %s" % (command, param, value)
