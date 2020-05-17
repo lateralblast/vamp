@@ -26,3 +26,7 @@
 # Bug fixes and improvements
 # 0.1.4: Sun 17 May 2020 21:11:44 AEST
 # Improved import/export
+# 0.1.5: Sun 17 May 2020 22:02:21 AEST
+# Added support for more functions
+# 0.1.6: Sun 17 May 2020 22:19:48 AEST
+# Improved create/clone/modify medium

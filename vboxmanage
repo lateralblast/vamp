@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.4
+# Version:      0.1.6
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -210,8 +210,14 @@ def vboxmanage_list(module):
 
 # Handle VirtualBox createmedium function
 
-def vboxmanage_createmedium(module):
-  command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['devive'], module.params['filename'])
+def vboxmanage_create_clone_modify_medium(module):
+  if module.params['function'] == "createmedium":
+    command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['device'], module.params['filename'])
+  else:
+    if module.params['function'] == "clonemedium":
+      command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['device'], module.params['inputfile'], module.params['outputfile'])
+    else:
+      command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
   for param in module.params:
     if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
       value = module.params[param]
@@ -261,9 +267,15 @@ def vboxmanage_function(module):
     else:
       command = "vboxmanage %s %s --%s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
   else:
-    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+    if re.search("dhcpsever|extpack", module.params['function']):
+      command = "vboxmanage %s %s" % (module.params['function'], module.params['action'])
+    else:
+      if re.search("snapshot|debugvm", module.params['function']):
+        command = "vboxmanage %s %s %s" % (module.params['function'], module.params['vmname'], module.params['action'])
+      else:
+        command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|export|filename", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|export|filename|action", param):
         value = module.params[param]
         if value != None:
           if re.search("removeonsuspend|active|remote|allowlocallogon", param):
@@ -273,7 +285,13 @@ def vboxmanage_function(module):
               value = "yes"
             if value == False:
               value = "no"
-            command = "%s --%s %s" % (command, param, value)
+            if param == "set" or param == "add":
+              command = "%s %s %s" % (command, param, value)
+            else:
+              if module.params['function'] == "dhcpserver":
+                command = "%s --%s=%s" % (command, param, value)
+              else:
+                command = "%s --%s %s" % (command, param, value)
   if module.params['suffix'] != None:
     command = "%s %s" % (command, module.params['suffix'])
   if module.params['search'] != None:
@@ -356,6 +374,7 @@ def main():
     'createdirectory':            { 'default': None,   'type': 'str' },
     'createtemp':                 { 'default': None,   'type': 'str' },
     'createtemporary':            { 'default': None,   'type': 'str' },
+    'default-lease-time':         { 'default': None,   'type': 'str' },
     'defaultfrontend':            { 'default': None,   'type': 'str' },
     'delete':                     { 'default': False,  'type': 'bool' },
     'description':                { 'default': None,   'type': 'str' },
@@ -370,13 +389,17 @@ def main():
     'encodedlun':                 { 'default': None,   'type': 'str' },
     'eula':                       { 'default': None,   'type': 'str' },
     'eulafile':                   { 'default': None,   'type': 'str' },
+    'excl-mac':                   { 'default': None,   'type': 'str' },
+    'excl-mac-wild':              { 'default': None,   'type': 'str' },
     'exe':                        { 'default': None,   'type': 'str' },
     'execute':                    { 'default': True,   'type': 'bool' },
     'export':                     { 'default': True,   'type': 'str' },
     'extpack':                    { 'default': None,   'type': 'str' },
     'filename':                   { 'default': None,   'type': 'str' },
     'firmware':                   { 'default': None,   'type': 'str' },
+    'fixed-address':              { 'default': None,   'type': 'str' },
     'follow':                     { 'default': None,   'type': 'str' },
+    'force-opt':                  { 'default': None,   'type': 'str' },
     'forceunmount':               { 'default': None,   'type': 'str' },
     'format':                     { 'default': None,   'type': 'str' },
     'function':                   { 'default': 'list', 'type': 'str' },
@@ -394,7 +417,11 @@ def main():
     'iconfile':                   { 'default': None,   'type': 'str' },
     'ignore-operhaned-processes': { 'default': None,   'type': 'str' },
     'import':                     { 'default': None,   'type': 'str' },
+    'incl-mac':                   { 'default': None,   'type': 'str' },
+    'incl-mac-wild':              { 'default': None,   'type': 'str' },
     'initiator':                  { 'default': None,   'type': 'str' },
+    'inputfile':                  { 'default': None,   'type': 'str' },
+    'interface':                  { 'default': None,   'type': 'str' },
     'intnet':                     { 'default': None,   'type': 'str' },
     'intnet1':                    { 'default': None,   'type': 'str' },
     'intnet2':                    { 'default': None,   'type': 'str' },
@@ -412,6 +439,7 @@ def main():
     'longmode':                   { 'default': None,   'type': 'str' },
     'loopback-4':                 { 'default': None,   'type': 'str' },
     'loopback-6':                 { 'default': None,   'type': 'str' },
+    'lower-ip':                   { 'default': None,   'type': 'str' },
     'lpt1':                       { 'default': None,   'type': 'str' },
     'lpt2':                       { 'default': None,   'type': 'str' },
     'lpt3':                       { 'default': None,   'type': 'str' },
@@ -429,8 +457,10 @@ def main():
     'machinereadable':            { 'default': False,  'type': 'bool' },
     'manufacturer':               { 'default': None,   'type': 'str' },
     'maskedinterfaces':           { 'default': None,   'type': 'str' },
+    'max-lease-time':             { 'default': None,   'type': 'str' },
     'medium':                     { 'default': None,   'type': 'str' },
     'memory':                     { 'default': None,   'type': 'str' },
+    'min-lease-time':             { 'default': None,   'type': 'str' },
     'mkdir':                      { 'default': None,   'type': 'str' },
     'mktemp':                     { 'default': None,   'type': 'str' },
     'mouse':                      { 'default': None,   'type': 'str' },
@@ -484,7 +514,9 @@ def main():
     'natsettings4':               { 'default': None,   'type': 'str' },
     'nested-hw-virt':             { 'default': None,   'type': 'str' },
     'nestedpaging':               { 'default': None,   'type': 'str' },
+    'netmask':                    { 'default': None,   'type': 'str' },
     'netname':                    { 'default': None,   'type': 'str' },
+    'network':                    { 'default': None,   'type': 'str' },
     'newpassword':                { 'default': None,   'type': 'str' },
     'newpasswordid':              { 'default': None,   'type': 'str' },
     'nic1':                       { 'default': None,   'type': 'str' },
@@ -512,6 +544,7 @@ def main():
     'options':                    { 'default': None,   'type': 'str' },
     'ostype':                     { 'default': None,   'type': 'str' },
     'output':                     { 'default': None,   'type': 'str' },
+    'outputfile':                 { 'default': None,   'type': 'str' },
     'ovf09':                      { 'default': None,   'type': 'str' },
     'ovf10':                      { 'default': None,   'type': 'str' },
     'ovf20':                      { 'default': None,   'type': 'str' },
@@ -568,8 +601,11 @@ def main():
     'search':                     { 'default': None,   'type': 'str' },
     'serialnumber':               { 'default': None,   'type': 'str' },
     'server':                     { 'default': None,   'type': 'str' },
+    'server-ip':                  { 'default': None,   'type': 'str' },
     'session-id':                 { 'default': None,   'type': 'str' },
     'session-name':               { 'default': None,   'type': 'str' },
+    'set-opt':                    { 'default': None,   'type': 'str' },
+    'set-opt-hex':                { 'default': None,   'type': 'str' },
     'setscreenlayout':            { 'default': None,   'type': 'str' },
     'setparentuuid':              { 'default': None,   'type': 'str' },
     'settingspw':                 { 'default': None,   'type': 'str' },
@@ -582,6 +618,7 @@ def main():
     'spec-ctrl':                  { 'default': None,   'type': 'str' },
     'stat':                       { 'default': None,   'type': 'str' },
     'state':                      { 'default': None,   'type': 'str' },
+    'supress-opt':                { 'default': None,   'type': 'str' },
     'system-uuid-le':             { 'default': None,   'type': 'str' },
     'target':                     { 'default': None,   'type': 'str' },
     'target-directory':           { 'default': None,   'type': 'str' },
@@ -611,6 +648,7 @@ def main():
     'uarttype4':                  { 'default': None,   'type': 'str' },
     'unquoted-args':              { 'default': None,   'type': 'str' },
     'usbcardreader':              { 'default': None,   'type': 'str' },
+    'upper-ip':                   { 'default': None,   'type': 'str' },
     'username':                   { 'default': None,   'type': 'str' },
     'uuid':                       { 'default': None,   'type': 'str' },
     'value':                      { 'default': None,   'type': 'str' },
@@ -693,7 +731,10 @@ def main():
               if function == "closemedium":
                 (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
               else:
-                (stdout, stderr, rc, command) = vboxmanage_function(module)
+                if re.search("createmedium|modifymedium", function):
+                  (stdout, stderr, rc, command) = vboxmanage_create_clone_modify_medium(module)
+                else:
+                  (stdout, stderr, rc, command) = vboxmanage_function(module)
 
   if len(stdout) == 0 and len(stderr) > 0:
     stdout = stderr
