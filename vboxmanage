@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.6
+# Version:      0.1.7
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -154,7 +154,7 @@ def vboxmanage_setproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
         value = module.params[param]
         if value != None:
           if value == True:
@@ -208,21 +208,44 @@ def vboxmanage_list(module):
   else:
     return("", "", 0, command)
 
+# Handle VirtualBox mediumproperty function
+
+def vboxmanage_mediumproperty(module):
+  if module.params['function'] == "checkmediumpwd":
+    command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], module.params['passwordfile'])
+  else:
+    if module.params['action'] == "set":
+      command = "vboxmanage %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'], module.params['value'])
+    else:
+      command = "vboxmanage %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command)
+  else:
+    return("", "", 0, command)
+
+
 # Handle VirtualBox createmedium function
 
 def vboxmanage_create_clone_modify_medium(module):
   if module.params['function'] == "createmedium":
     command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['device'], module.params['filename'])
   else:
-    if module.params['function'] == "clonemedium":
-      command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['device'], module.params['inputfile'], module.params['outputfile'])
+    if module.params['function'] == "convertfromraw":
+      command = "vboxmanage %s %s %s" % (module.params['function'], module.params['inputfile'], module.params['outputfile'])
     else:
-      command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
+      if module.params['function'] == "clonemedium":
+        command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['device'], module.params['inputfile'], module.params['outputfile'])
+      else:
+        command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|execute|dry-run", param):
+    if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
       value = module.params[param]
       if value != None and value != False:
-        command = "%s %s %s" % (command, param, value)
+        if module.params['function'] == "convertfromraw":
+          command = "%s --%s %s" % (command, param, value)
+        else:
+          command = "%s %s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     return(process.stdout, process.stderr, process.returncode, command)
@@ -273,7 +296,10 @@ def vboxmanage_function(module):
       if re.search("snapshot|debugvm", module.params['function']):
         command = "vboxmanage %s %s %s" % (module.params['function'], module.params['vmname'], module.params['action'])
       else:
-        command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+        if re.search("encryptmedium", module.params['function']):
+          command = "vboxmanage %s %s" % (module.params['function'], module.params['filename'])
+        else:
+          command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
       if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|export|filename|action", param):
         value = module.params[param]
@@ -288,7 +314,7 @@ def vboxmanage_function(module):
             if param == "set" or param == "add":
               command = "%s %s %s" % (command, param, value)
             else:
-              if module.params['function'] == "dhcpserver":
+              if re.search("dhcpserver|clonevm", module.params['function']):
                 command = "%s --%s=%s" % (command, param, value)
               else:
                 command = "%s --%s %s" % (command, param, value)
@@ -569,6 +595,7 @@ def main():
     'profile':                    { 'default': None,   'type': 'str' },
     'productid':                  { 'default': None,   'type': 'str' },
     'producturl':                 { 'default': None,   'type': 'str' },
+    'property':                   { 'default': None,   'type': 'str' },
     'proxymode':                  { 'default': None,   'type': 'str' },
     'proxyurl':                   { 'default': None,   'type': 'str' },
     'putenv':                     { 'default': None,   'type': 'str' },
@@ -686,6 +713,18 @@ def main():
   }
   module = AnsibleModule(argument_spec = fields)
 
+  function = module.params['function']
+  function = re.sub("^start$", "startvm", function)
+  function = re.sub("^modify$", "modifyvm", function)
+  function = re.sub("^control$", "controlvm", function)
+  function = re.sub("^create$", "createvm", function)
+  function = re.sub("^clone$", "clonevm", function)
+  function = re.sub("^importvm$", "import", function)
+  function = re.sub("^exportvm$", "export", function)
+  function = re.sub("^register$", "registervm", function)
+  function = re.sub("^unregister$", "unregistervm", function)
+  module.params['function'] = function
+
   if module.params['vm'] != None:
     module.params['vmname'] = module.params['vm']
   
@@ -698,17 +737,11 @@ def main():
   if module.params['output'] != None:
     module.params['filename'] = module.params['output']
 
-  function = module.params['function']
-  function = re.sub("^start$", "startvm", function)
-  function = re.sub("^modify$", "modifyvm", function)
-  function = re.sub("^control$", "controlvm", function)
-  function = re.sub("^create$", "createvm", function)
-  function = re.sub("^importvm$", "import", function)
-  function = re.sub("^exportvm$", "export", function)
-  function = re.sub("^register$", "registervm", function)
-  function = re.sub("^unregister$", "unregistervm", function)
-#  function = re.sub("^$", "vm", function)
-  module.params['function'] = function
+  if re.search("mediumpropery|checkmediumpwd", function):
+    if module.params['uuid'] != None:
+      module.params['filename'] = module.params['uuid']
+    if module.params['param'] != None:
+      module.params['property'] = module.params['param']
 
   if function == "version":
     (stdout, stderr, rc, command) = vboxmanage_other(module)
@@ -731,10 +764,13 @@ def main():
               if function == "closemedium":
                 (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
               else:
-                if re.search("createmedium|modifymedium", function):
+                if re.search("createmedium|modifymedium|convertfromraw", function):
                   (stdout, stderr, rc, command) = vboxmanage_create_clone_modify_medium(module)
                 else:
-                  (stdout, stderr, rc, command) = vboxmanage_function(module)
+                  if re.search("mediumpropery|checkmediumpwd", function):
+                    (stdout, stderr, rc, command) = vboxmanage_mediumproperty(module)
+                  else:
+                    (stdout, stderr, rc, command) = vboxmanage_function(module)
 
   if len(stdout) == 0 and len(stderr) > 0:
     stdout = stderr
