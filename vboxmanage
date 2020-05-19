@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.7
+# Version:      0.1.8
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -109,7 +109,7 @@ def vboxmanage_import_export_vm(module):
     else:
       command = "vboxmanage %s %s --output %s" % (module.params['function'], module.params['vmname'], module.params['filename'])
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|filename|execute|dry-run|delete|import|export", param):
+    if not re.search("vmname|function|list|machinereadable|filename|execute|dry-run|delete|import|export|engine", param):
       value = module.params[param]
       if value != None:
         command = "%s --%s %s" % (command, param, value)
@@ -130,7 +130,7 @@ def vboxmanage_getproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|engine", param):
         value = module.params[param]
         if value != None:
           if value == True:
@@ -154,7 +154,7 @@ def vboxmanage_setproperty(module):
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|engine", param):
         value = module.params[param]
         if value != None:
           if value == True:
@@ -179,7 +179,7 @@ def vboxmanage_control_vm(module):
     else:
       command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
       for param in module.params:
-        if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
+        if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|engine", param):
           value = module.params[param]
           if value != None:
             if value == True:
@@ -239,7 +239,7 @@ def vboxmanage_create_clone_modify_medium(module):
       else:
         command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
   for param in module.params:
-    if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete", param):
+    if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|engine", param):
       value = module.params[param]
       if value != None and value != False:
         if module.params['function'] == "convertfromraw":
@@ -301,7 +301,7 @@ def vboxmanage_function(module):
         else:
           command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
-      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|export|filename|action", param):
+      if not re.search("vmname|function|list|machinereadable|execute|dry-run|delete|export|filename|action|engine", param):
         value = module.params[param]
         if value != None:
           if re.search("removeonsuspend|active|remote|allowlocallogon", param):
@@ -332,6 +332,7 @@ def vboxmanage_function(module):
 
 def main():
   fields = {
+    'engine':                     { 'default': None,   'type': 'str' },
     'accelerate2dvideo':          { 'default': None,   'type': 'str' },
     'accelerate3d':               { 'default': None,   'type': 'str' },
     'action':                     { 'default': None,   'type': 'str' },
@@ -713,6 +714,16 @@ def main():
   }
   module = AnsibleModule(argument_spec = fields)
 
+  if module.params['engine'] == None:
+    if re.search("_", module._name):
+      module.params['engine'] = module._name.split("_")[0] 
+    else:
+      module.params['engine'] = module._name
+
+  if module.params['function'] == None:
+    if re.search("_", module._name):
+      module.params['function'] = module._name.split("_")[1] 
+
   function = module.params['function']
   function = re.sub("^start$", "startvm", function)
   function = re.sub("^modify$", "modifyvm", function)
@@ -727,55 +738,58 @@ def main():
 
   if module.params['vm'] != None:
     module.params['vmname'] = module.params['vm']
-  
-  if module.params['import'] != None:
-    module.params['filename'] = module.params['import']
 
-  if module.params['export'] != None:
-    module.params['filename'] = module.params['export']
+  if module.params['engine'] == "vboxmanage":
 
-  if module.params['output'] != None:
-    module.params['filename'] = module.params['output']
+    if module.params['import'] != None:
+      module.params['filename'] = module.params['import']
 
-  if re.search("mediumpropery|checkmediumpwd", function):
-    if module.params['uuid'] != None:
-      module.params['filename'] = module.params['uuid']
-    if module.params['param'] != None:
-      module.params['property'] = module.params['param']
+    if module.params['export'] != None:
+      module.params['filename'] = module.params['export']
 
-  if function == "version":
-    (stdout, stderr, rc, command) = vboxmanage_other(module)
-  else:
-    if function == "list":
-      (stdout, stderr, rc, command) = vboxmanage_list(module)
+    if module.params['output'] != None:
+      module.params['filename'] = module.params['output']
+
+    if re.search("mediumpropery|checkmediumpwd", function):
+      if module.params['uuid'] != None:
+        module.params['filename'] = module.params['uuid']
+      if module.params['param'] != None:
+        module.params['property'] = module.params['param']
+
+    if function == "version":
+      (stdout, stderr, rc, command) = vboxmanage_other(module)
     else:
-      if function == "controlvm":
-        (stdout, stderr, rc, command) = vboxmanage_control_vm(module)
+      if function == "list":
+        (stdout, stderr, rc, command) = vboxmanage_list(module)
       else:
-        if re.search("port", function):
-          (stdout, stderr, rc, command) = vboxmanage_import_export_vm(module)
-        else:   
-          if re.search("setproperty|setextrdata", function):
-            (stdout, stderr, rc, command) = vboxmanage_setproperty(module)
-          else:
-            if re.search("getproperty|getextrdata", function):
-              (stdout, stderr, rc, command) = vboxmanage_getproperty(module)
+        if function == "controlvm":
+          (stdout, stderr, rc, command) = vboxmanage_control_vm(module)
+        else:
+          if re.search("port", function):
+            (stdout, stderr, rc, command) = vboxmanage_import_export_vm(module)
+          else:   
+            if re.search("setproperty|setextrdata", function):
+              (stdout, stderr, rc, command) = vboxmanage_setproperty(module)
             else:
-              if function == "closemedium":
-                (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
+              if re.search("getproperty|getextrdata", function):
+                (stdout, stderr, rc, command) = vboxmanage_getproperty(module)
               else:
-                if re.search("createmedium|modifymedium|convertfromraw", function):
-                  (stdout, stderr, rc, command) = vboxmanage_create_clone_modify_medium(module)
+                if function == "closemedium":
+                  (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
                 else:
-                  if re.search("mediumpropery|checkmediumpwd", function):
-                    (stdout, stderr, rc, command) = vboxmanage_mediumproperty(module)
+                  if re.search("createmedium|modifymedium|convertfromraw", function):
+                    (stdout, stderr, rc, command) = vboxmanage_create_clone_modify_medium(module)
                   else:
-                    (stdout, stderr, rc, command) = vboxmanage_function(module)
+                    if re.search("mediumpropery|checkmediumpwd", function):
+                      (stdout, stderr, rc, command) = vboxmanage_mediumproperty(module)
+                    else:
+                      (stdout, stderr, rc, command) = vboxmanage_function(module)
 
   if len(stdout) == 0 and len(stderr) > 0:
     stdout = stderr
 
   module.exit_json(
+    _name   = module._name,
     changed = True,
     stdout  = stdout, 
     stderr  = stderr, 

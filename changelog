@@ -32,3 +32,5 @@
 # Improved create/clone/modify medium
 # 0.1.7: Mon 18 May 2020 09:57:26 AEST
 # Support for more functions
+# 0.1.8: Tue 19 May 2020 13:10:26 AEST
+# Added code to allow modular expansion to support other virtualisation stacks
