@@ -34,3 +34,5 @@
 # Support for more functions
 # 0.1.8: Tue 19 May 2020 13:10:26 AEST
 # Added code to allow modular expansion to support other virtualisation stacks
+# 0.1.9: Thu 21 May 2020 14:04:57 AEST
+# Added more KVM functionality

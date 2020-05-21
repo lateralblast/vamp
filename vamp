@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.1.8
+# Version:      0.1.9
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -16,6 +16,7 @@
 from ansible.constants import mk_boolean
 from ansible.module_utils.basic import *
 import subprocess
+import inspect
 import os
 import re
 
@@ -87,19 +88,93 @@ EXAMPLES = '''
 - vboxmanage: function=import filename=/path/to/VM_IMPORT.ova
 '''
 
+# Handle KVM list
+
+def kvm_list(module):
+  term = ""
+  subroutine = inspect.stack()[0][3]
+  if re.search("domain|vm", module.params['list']):
+    term = "list"
+  else:
+    if re.search("domblk|domif", module.params['list']):
+      term = "%slist" % (module.params['list'])
+    else:
+      term = "%s-list" % (module.params['list'])
+  if module.params['search']:
+    command = "virsh %s --all |grep %s" % (term, module.params['search'])
+  else:
+    command = "virsh %s --all" % (term)
+  if module.params['search']:
+    command = "virsh %s --all |grep '%s'" % (term, module.params['search'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+# Handle kvm control functions e.g. start, stop etc
+
+def kvm_control(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['type'] == "pool":
+    command = "virsh pool-%s %s" % (module.params['function'], module.params['poolname'])
+  else:
+    command = "virsh %s %s" % (module.params['function'], module.params['vmname'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+# Handle kvm modify functions e.g. setmem, setvcpus
+
+def kvm_modify(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['type'] == "pool":
+    if re.search("define|create", module.params['function']):
+      if module.params['print']:
+        command = "virsh pool-define-as %s --print %s --type dir %s" % (module.params['poolname'], module.params['print'], module.params['target'])
+      else:
+        command = "virsh pool-define-as %s --type dir %s" % (module.params['poolname'], module.params['target'])
+    else:
+      command = "virsh pool-%s %s" % (module.params['function'], module.params['poolname'])
+  else:
+    command = "virsh %s %s" % (module.params['function'], module.params['vmname'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+# Handle kvm convert image
+
+def kvm_image(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['function'] == "import":
+    command = "virt-v2v -i %s %s -o libvirt -of %s -os %s -n %s" % (module.params['type'], module.params['filename'], module.params['format'], module.params['poolname'], module.params['network'])
+  if module.params['function'] == "convert":
+    command = "qemu-img %s -O %s %s %s" % (module.params['function'], module.params['type'], module.params['inputfile'], module.params['outputfile'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
 # Handle simple VirtualBox functions like version
 
-def vboxmanage_other(module):
+def vbox_other(module):
+  subroutine = inspect.stack()[0][3]
   command = "vboxmanage --%s" % (module.params['function'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Import VirtualBox VM
 
-def vboxmanage_import_export_vm(module):
+def vbox_image(module):
+  subroutine = inspect.stack()[0][3]
   if module.params['dry-run'] == True and module.params['function'] == "import":
     dryrun = "--dry-run"
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], dryrun)
@@ -115,13 +190,14 @@ def vboxmanage_import_export_vm(module):
         command = "%s --%s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Get VirtualBox property
 
-def vboxmanage_getproperty(module):
+def vbox_get_property(module):
+  subroutine = inspect.stack()[0][3]
   if not module.params['param'] == None:
     if module.params['function'] == "getproperty":
       command = 'vboxmanage showvminfo %s |grep -i "%s"' % (module.params['vmname'], module.params['param'])
@@ -138,17 +214,18 @@ def vboxmanage_getproperty(module):
           if value == False:
             value = "no"
           command = "%s %s" % (command, param)
-  if module.params['search'] != None:
+  if module.params['search']:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Set VirtualBox property
 
-def vboxmanage_setproperty(module):
+def vbox_set_property(module):
+  subroutine = inspect.stack()[0][3]
   if not module.params['param'] == None:
     command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
   else:
@@ -164,17 +241,18 @@ def vboxmanage_setproperty(module):
           command = "%s %s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Control VirtualBox VM
 
-def vboxmanage_control_vm(module):
-  if module.params['state'] != None:
+def vbox_control(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['state']:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'], module.params['state'])
   else:
-    if module.params['param'] != None:
+    if module.params['param']:
       command = "%s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
     else:
       command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
@@ -189,28 +267,30 @@ def vboxmanage_control_vm(module):
             command = "%s %s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Handle VirtualBox list function
 
-def vboxmanage_list(module):
+def vbox_list(module):
   command = "vboxmanage %s %s" % (module.params['function'], module.params['list'])
-  if module.params['search'] != None:
+  subroutine = inspect.stack()[0][3]
+  if module.params['search']:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
   else:
-    if module.params['param'] != None:
+    if module.params['param']:
       command = '%s |grep -i "%s"' % (command, module.params['param'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Handle VirtualBox mediumproperty function
 
-def vboxmanage_mediumproperty(module):
+def vbox_medium_property(module):
+  subroutine = inspect.stack()[0][3]
   if module.params['function'] == "checkmediumpwd":
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], module.params['passwordfile'])
   else:
@@ -220,14 +300,15 @@ def vboxmanage_mediumproperty(module):
       command = "vboxmanage %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 
 # Handle VirtualBox createmedium function
 
-def vboxmanage_create_clone_modify_medium(module):
+def vbox_modify_medium(module):
+  subroutine = inspect.stack()[0][3]
   if module.params['function'] == "createmedium":
     command = "vboxmanage %s %s --filename %s" % (module.params['function'], module.params['device'], module.params['filename'])
   else:
@@ -248,13 +329,14 @@ def vboxmanage_create_clone_modify_medium(module):
           command = "%s %s %s" % (command, param, value)
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Handle VirtualBox closemedium function
 
-def vboxmanage_closemedium(module):
+def vbox_close_medium(module):
+  subroutine = inspect.stack()[0][3]
   if module.params['uuid'] != None:
     module.params['filename'] = module.params['uuid']
   if module.params['delete'] == True:
@@ -263,27 +345,32 @@ def vboxmanage_closemedium(module):
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['device'], module.params['filename'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Handle VirtualBox unregistervm function
 
-def vboxmanage_unregistervm(module):
-  if module.params['delete'] == True:
-    command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
+def vbox_register(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['function'] == "unregistervm":
+    command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['filename'])
   else:
-    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
+    if module.params['delete'] == True:
+      command = "vboxmanage %s %s --delete" % (module.params['function'], module.params['vmname'])
+    else:
+      command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Handle other VirtualBox functions
 
-def vboxmanage_function(module):
+def vbox_function(module):
   command = ""
+  subroutine = inspect.stack()[0][3]
   if module.params['param'] != None:
     if module.params['function'] == "showvminfo":
       command = "vboxmanage %s %s |grep -i %s" % (module.params['function'], module.params['vmname'], module.params['param'])
@@ -318,15 +405,15 @@ def vboxmanage_function(module):
                 command = "%s --%s=%s" % (command, param, value)
               else:
                 command = "%s --%s %s" % (command, param, value)
-  if module.params['suffix'] != None:
+  if module.params['suffix']:
     command = "%s %s" % (command, module.params['suffix'])
-  if module.params['search'] != None:
+  if module.params['search']:
     command = '%s |grep -i "%s"' % (command, module.params['search'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    return(process.stdout, process.stderr, process.returncode, command)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
   else:
-    return("", "", 0, command)
+    return("", "", 0, command, subroutine)
 
 # Main routine - Get anisible module parameters, call functions and exit
 
@@ -588,9 +675,12 @@ def main():
     'pciattach':                  { 'default': None,   'type': 'str' },
     'pcidetach':                  { 'default': None,   'type': 'str' },
     'plugcpu':                    { 'default': None,   'type': 'str' },
+    'pool':                       { 'default': None,   'type': 'str' },
+    'poolname':                   { 'default': None,   'type': 'str' },
     'port-forward-4':             { 'default': None,   'type': 'str' },
     'port-forward-6':             { 'default': None,   'type': 'str' },
     'portcount':                  { 'default': None,   'type': 'str' },
+    'print':                      { 'default': None,   'type': 'str' },
     'program':                    { 'default': None,   'type': 'str' },
     'product':                    { 'default': None,   'type': 'str' },
     'profile':                    { 'default': None,   'type': 'str' },
@@ -714,6 +804,12 @@ def main():
   }
   module = AnsibleModule(argument_spec = fields)
 
+  stdout  = ""
+  stderr  = ""
+  rc      = 1
+  command = ""
+  subroutine = ""
+
   if module.params['engine'] == None:
     if re.search("_", module._name):
       module.params['engine'] = module._name.split("_")[0] 
@@ -725,77 +821,112 @@ def main():
       module.params['function'] = module._name.split("_")[1] 
 
   function = module.params['function']
-  function = re.sub("^start$", "startvm", function)
-  function = re.sub("^modify$", "modifyvm", function)
-  function = re.sub("^control$", "controlvm", function)
-  function = re.sub("^create$", "createvm", function)
-  function = re.sub("^clone$", "clonevm", function)
-  function = re.sub("^importvm$", "import", function)
-  function = re.sub("^exportvm$", "export", function)
-  function = re.sub("^register$", "registervm", function)
-  function = re.sub("^unregister$", "unregistervm", function)
-  module.params['function'] = function
 
-  if module.params['vm'] != None:
+  if module.params['vm']:
     module.params['vmname'] = module.params['vm']
 
-  if module.params['engine'] == "vboxmanage":
+  if module.params['engine'] == "kvm":
 
-    if module.params['import'] != None:
+    function = re.sub("^startvm$", "start", function)
+    function = re.sub("^stopvm$", "stop", function)
+    function = re.sub("^modifyvm$", "modify", function)
+    module.params['function'] = function
+
+    if module.params['pool']:
+      module.params['poolname'] = module.params['pool']
+
+    if module.params['format'] == None:
+      module.params['format'] = "qcow2"
+
+    if module.params['network'] == None:
+      module.params['network'] = "default"
+
+    if re.search("start|stop|suspend|reboot|reset|resume", function):
+      (stdout, stderr, rc, command, subroutine) = kvm_control(module)
+    else:
+      if re.search("modify|set|pool|create|define|build", function):
+        (stdout, stderr, rc, command, subroutine) = kvm_modify(module)
+      else:
+        if re.search("list", function):
+          module.params['list'] = re.sub("network", "net", module.params['list'])
+          (stdout, stderr, rc, command, subroutine) = kvm_list(module)
+        else:
+          if re.search("import", function):
+            (stdout, stderr, rc, command, subroutine) = kvm_image(module)
+
+  if re.search("vbox", module.params['engine']):
+
+    function = re.sub("^start$", "startvm", function)
+    function = re.sub("^stop$", "stopvm", function)
+    function = re.sub("^modify$", "modifyvm", function)
+    function = re.sub("^control$", "controlvm", function)
+    function = re.sub("^create$", "createvm", function)
+    function = re.sub("^clone$", "clonevm", function)
+    function = re.sub("^importvm$", "import", function)
+    function = re.sub("^exportvm$", "export", function)
+    function = re.sub("^register$", "registervm", function)
+    function = re.sub("^unregister$","unregistervm", function)
+    module.params['function'] = function
+
+    if module.params['import']:
       module.params['filename'] = module.params['import']
 
-    if module.params['export'] != None:
+    if module.params['export']:
       module.params['filename'] = module.params['export']
 
-    if module.params['output'] != None:
+    if module.params['output']:
       module.params['filename'] = module.params['output']
 
     if re.search("mediumpropery|checkmediumpwd", function):
-      if module.params['uuid'] != None:
+      if module.params['uuid']:
         module.params['filename'] = module.params['uuid']
-      if module.params['param'] != None:
+      if module.params['param']:
         module.params['property'] = module.params['param']
 
     if function == "version":
-      (stdout, stderr, rc, command) = vboxmanage_other(module)
+      (stdout, stderr, rc, command, subroutine) = vbox_other(module)
     else:
       if function == "list":
-        (stdout, stderr, rc, command) = vboxmanage_list(module)
+        (stdout, stderr, rc, command, subroutine) = vbox_list(module)
       else:
         if function == "controlvm":
-          (stdout, stderr, rc, command) = vboxmanage_control_vm(module)
+          (stdout, stderr, rc, command, subroutine) = vbox_control(module)
         else:
           if re.search("port", function):
-            (stdout, stderr, rc, command) = vboxmanage_import_export_vm(module)
+            (stdout, stderr, rc, command, subroutine) = vbox_image(module)
           else:   
             if re.search("setproperty|setextrdata", function):
-              (stdout, stderr, rc, command) = vboxmanage_setproperty(module)
+              (stdout, stderr, rc, command, subroutine) = vbox_set_property(module)
             else:
               if re.search("getproperty|getextrdata", function):
-                (stdout, stderr, rc, command) = vboxmanage_getproperty(module)
+                (stdout, stderr, rc, command, subroutine) = vbox_get_property(module)
               else:
                 if function == "closemedium":
-                  (stdout, stderr, rc, command) = vboxmanage_closemedium(module)
+                  (stdout, stderr, rc, command, subroutine) = vbox_close_medium(module)
                 else:
                   if re.search("createmedium|modifymedium|convertfromraw", function):
-                    (stdout, stderr, rc, command) = vboxmanage_create_clone_modify_medium(module)
+                    (stdout, stderr, rc, command, subroutine) = vbox_modify_medium(module)
                   else:
                     if re.search("mediumpropery|checkmediumpwd", function):
-                      (stdout, stderr, rc, command) = vboxmanage_mediumproperty(module)
+                      (stdout, stderr, rc, command, subroutine) = vbox_medium_property(module)
                     else:
-                      (stdout, stderr, rc, command) = vboxmanage_function(module)
+                      if re.search("register", function):
+                        (stdout, stderr, rc, command, subroutine) = vbox_register(module)
+                      else:
+                        (stdout, stderr, rc, command, subroutine) = vbox_function(module)
 
   if len(stdout) == 0 and len(stderr) > 0:
     stdout = stderr
 
   module.exit_json(
-    _name   = module._name,
-    changed = True,
-    stdout  = stdout, 
-    stderr  = stderr, 
-    rc      = rc, 
-    command = command, 
-    meta    = module.params
+    _name       = module._name,
+    changed     = True,
+    stdout      = stdout, 
+    stderr      = stderr, 
+    rc          = rc, 
+    command     = command, 
+    subroutine  = subroutine,
+    meta        = module.params
   )
 
 if __name__ == '__main__':
