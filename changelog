@@ -38,3 +38,5 @@
 # Added more KVM functionality
 # 0.2.0: Thu 21 May 2020 15:54:29 AEST
 # Added rename for KVM
+# 0.2.1: Fri 22 May 2020 11:03:27 AEST
+# Added getproperty for KVM
