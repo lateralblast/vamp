@@ -126,6 +126,18 @@ def kvm_control(module):
   else:
     return("", "", 0, command, subroutine)
 
+# Handle kvm detach
+
+def kvm_detach(module):
+  subroutine = inspect.stack()[0][3]
+  command = "virsh %s --domain %s --type %s --mac %s" % (module.params['function'], module.params['vmname'], module.params['type'], module.params['mac'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+
 # Handle kvm getproperty function, e.g. MAC address
 
 def kvm_get_property(module):

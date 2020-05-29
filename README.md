@@ -3,18 +3,18 @@
 VAMP
 ====
 
-VirtualBox/VBoxManage Ansible Module in Python
+Virtualisation Ansible Module in Python
 
 Introduction
 ------------
 
-This is an Ansible module for Virtual Box.
+This is an Ansible module for VirtualBox, and KVM.
 
-I couldn't find a suitable Anisible Module for driving VirtualBox 
-and calling VirtualBox from Ansible via shell module was tedious.
+I couldn't find a suitable Anisible Module for driving VirtualBox or KVM, 
+and calling VirtualBox or KVM from Ansible via shell module was tedious.
 
 At the moment it is a simple wrapper with some handling to make it
-easier to use than calling vboxmanage itself.
+easier to use than calling vboxmanage or virsh itself.
 
 Usage
 -----
