@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.2.1
+# Version:      0.2.5
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -256,7 +256,7 @@ def kvm_modify(module):
       command = "virsh pool-%s %s" % (module.params['function'], module.params['poolname'])
   else:
     if re.search("rename",module.params['vmname']):
-      command = "virsh %s %s" % (module.params['function'], module.params['vmname'], module.params['newname'])
+      command = "virsh %s %s %s" % (module.params['function'], module.params['vmname'], module.params['newname'])
     else:
       command = "virsh %s %s" % (module.params['function'], module.params['vmname'])
   if module.params['execute'] == True:
@@ -265,14 +265,63 @@ def kvm_modify(module):
   else:
     return("", "", 0, command, subroutine)
 
-# Handle kvm convert image
+# Handle kvm convert and other image functions
 
 def kvm_image(module):
   subroutine = inspect.stack()[0][3]
   if module.params['function'] == "import":
     command = "virt-v2v -i %s %s -o libvirt -of %s -os %s -n %s" % (module.params['type'], module.params['filename'], module.params['format'], module.params['poolname'], module.params['network'])
+  if module.params['function'] == "cloud-localds":
+    if module.params['network-config']:
+      if re.search("[a-z]|[A-Z]|[0-9]",module.params['network-config']):
+        command = "%s --network-config %s %s %s" % (module.params['function'], module.params['network-config'], module.params['outputfile'], module.params['cloud-config'])
+    else:
+      command = "%s %s %s" % (module.params['function'], module.params['outputfile'], module.params['cloud-config'])
   if module.params['function'] == "convert":
-    command = "qemu-img %s -O %s %s %s" % (module.params['function'], module.params['type'], module.params['inputfile'], module.params['outputfile'])
+    command = "qemu-img %s -f %s %s %s" % (module.params['function'], module.params['format'], module.params['inputfile'], module.params['outputfile'])
+  if module.params['function'] == "resize":
+    command = "qemu-img %s %s %s" % (module.params['function'], module.params['inputfile'], module.params['size'])
+  if module.params['function'] == "customize":
+    command = "virt-customize %s %s" % (module.params['function'], module.params['intputfile'])
+    if re.search("[a-z]|[A-Z]|[0-9]",module.params['root-password']):
+      command = "%s --root-password password:%s" % (command, module.params['root-password'])
+    if re.search("[a-z]|[A-Z]|[0-9]",module.params['uninstall']):
+      command = "%s --uninstall%s" % (command, module.params['root-password'])
+    if re.search("[a-z]",module.params['options']):
+      command = "%s %s" % (command, module.params['options'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+# Handle KVM install
+
+def kvm_install(module):
+  subroutine = inspect.stack()[0][3]
+  command = "virt-install"
+  for option in [ "name", "vcpus", "memory", "cdrom", "cpu", "os-type", "os-variant", "host-device", "machine", "pxe", 
+                  "import", "extra-args", "connect", "metadata", "initrd-inject", "unattended", "install", "boot", "idmap",
+                  "disk", "network", "graphics", "controller", "input", "serial", "parallel", "channel", "console", "hostdev",
+                  "filesystem", "sound", "watchdog", "video", "smartcard", "redirdev", "memballoon", "tpm", "rng", "panic",
+                  "memdev", "vsock", "iothreads", "seclabel", "cputune", "memtune", "blkiotune", "memorybacking", "features",
+                  "clock", "pm", "events", "resource", "sysinfo", "qemu-commandline", "launchSecurity", "hvm", "paravirt",
+                  "container", "virt-type", "arch", "machine", "autostart", "transient", "destroy-on-exit", "wait",
+                  "noautoconsole", "noreboot", "print-xml", "dry-run", "check", "virt-type" ]:
+    if module.params[option]:
+      if option == "disk":
+        if re.search(" ", module.params[option]):
+          if not re.search("--disk", module.params[option]):
+            disks = module.params["disk"].replace(" ", " --disk ")
+            module.params["disk"] = disks
+      if re.search("[a-z]|[A-Z]|[0-9]", module.params[option]):
+        if module.params[option] == True or re.search("True",module.params[option]):
+          command = "%s --%s" % (command, option)
+        else:
+          command = "%s --%s %s" % (command, option, module.params[option])
+  if module.params['options']:
+    if re.search("[a-z]",module.params['options']):
+      command = "%s %s" % (command, module.params['options'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     return(process.stdout, process.stderr, process.returncode, command, subroutine)
@@ -321,7 +370,7 @@ def vbox_get_property(module):
     if module.params['function'] == "getproperty":
       command = 'vboxmanage showvminfo %s |grep -i "%s"' % (module.params['vmname'], module.params['param'])
     else:
-      command = "vboxmanage %s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'])
+      command = "vboxmanage %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'])
   else:
     command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'])
     for param in module.params:
@@ -369,7 +418,7 @@ def vbox_set_property(module):
 def vbox_control(module):
   subroutine = inspect.stack()[0][3]
   if module.params['state']:
-    command = "vboxmanage %s %s" % (module.params['function'], module.params['vmname'], module.params['state'])
+    command = "vboxmanage %s %s %s" % (module.params['function'], module.params['vmname'], module.params['state'])
   else:
     if module.params['param']:
       command = "%s %s %s %s" % (module.params['function'], module.params['vmname'], module.params['param'], module.params['value'])
@@ -414,7 +463,7 @@ def vbox_medium_property(module):
     command = "vboxmanage %s %s %s" % (module.params['function'], module.params['filename'], module.params['passwordfile'])
   else:
     if module.params['action'] == "set":
-      command = "vboxmanage %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'], module.params['value'])
+      command = "vboxmanage %s %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'], module.params['value'])
     else:
       command = "vboxmanage %s %s %s %s %s" % (module.params['function'], module.params['device'], module.params['action'], module.params['filename'], module.params['property'])
   if module.params['execute'] == True:
@@ -534,6 +583,27 @@ def vbox_function(module):
   else:
     return("", "", 0, command, subroutine)
 
+# Handle VirtualBox unregistervm function
+
+def qemu_image(module):
+  subroutine = inspect.stack()[0][3]
+  if module.params['function'] == "info":
+    command = "qemu-img %s %s" % (module.params['function'], module.params['filename'])
+  else:
+    if module.params['function'] == "resize":
+      command = "qemu-img %s %s %s" % (module.params['function'], module.params['filename'], module.params['size'])
+    else:
+      if module.params['function'] == "convert":
+        command = "qemu-img %s -f %s %s" % (module.params['function'], module.params['filename'], module.params['output'])
+  if module.params['search']:
+    command = '%s |grep -i "%s"' % (command, module.params['search'])
+  if module.params['execute'] == True:
+    process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    return(process.stdout, process.stderr, process.returncode, command, subroutine)
+  else:
+    return("", "", 0, command, subroutine)
+
+
 # Main routine - Get anisible module parameters, call functions and exit
 
 def main():
@@ -548,12 +618,14 @@ def main():
     'address':                    { 'default': None,   'type': 'str' },
     'allowlocallogon':            { 'default': None,   'type': 'str' },
     'apic':                       { 'default': None,   'type': 'str' },
+    'arch':                       { 'default': None,   'type': 'str' },
     'arg0':                       { 'default': None,   'type': 'str' },
     'audio':                      { 'default': None,   'type': 'str' },
     'audioin':                    { 'default': None,   'type': 'str' },
     'audioout':                   { 'default': None,   'type': 'str' },
     'audiocontroller':            { 'default': None,   'type': 'str' },
     'audiocodec':                 { 'default': None,   'type': 'str' },
+    'autostart':                  { 'default': None,   'type': 'str' },
     'autostartdbpath':            { 'default': None,   'type': 'str' },
     'autostart-delay':            { 'default': None,   'type': 'str' },
     'autostart-enabled':          { 'default': None,   'type': 'str' },
@@ -568,6 +640,8 @@ def main():
     'biospxedebug':               { 'default': None,   'type': 'str' },
     'bioslogoimagepath':          { 'default': None,   'type': 'str' },
     'biossystemtimeoffset':       { 'default': None,   'type': 'str' },
+    'blkiotune':                  { 'default': None,   'type': 'str' },
+    'boot':                       { 'default': None,   'type': 'str' },
     'boot1':                      { 'default': None,   'type': 'str' },
     'boot2':                      { 'default': None,   'type': 'str' },
     'boot3':                      { 'default': None,   'type': 'str' },
@@ -577,11 +651,16 @@ def main():
     'cableconnected2':            { 'default': None,   'type': 'str' },
     'cableconnected3':            { 'default': None,   'type': 'str' },
     'cableconnected4':            { 'default': None,   'type': 'str' },
+    'cdrom':                      { 'default': None,   'type': 'str' },
+    'channel':                    { 'default': None,   'type': 'str' },
+    'check':                      { 'default': None,   'type': 'str' },
     'chipset':                    { 'default': None,   'type': 'str' },
     'cipher':                     { 'default': None,   'type': 'str' },
     'clipboard-mode':             { 'default': None,   'type': 'str' },
     'closesession':               { 'default': None,   'type': 'str' },
+    'clock':                      { 'default': None,   'type': 'str' },
     'cloud':                      { 'default': None,   'type': 'str' },
+    'cloud-config':               { 'default': None,   'type': 'str' },
     'cloudinstanceid':            { 'default': None,   'type': 'str' },
     'cloudbucket':                { 'default': None,   'type': 'str' },
     'cloudkeepobject':            { 'default': None,   'type': 'str' },
@@ -595,6 +674,9 @@ def main():
     'cloudpublicip':              { 'default': None,   'type': 'str' },
     'cloudshape':                 { 'default': None,   'type': 'str' },
     'comment':                    { 'default': None,   'type': 'str' },
+    'connect':                    { 'default': None,   'type': 'str' },
+    'console':                    { 'default': None,   'type': 'str' },
+    'container':                  { 'default': None,   'type': 'str' },
     'controller':                 { 'default': None,   'type': 'str' },
     'copyfrom':                   { 'default': None,   'type': 'str' },
     'copyto':                     { 'default': None,   'type': 'str' },
@@ -602,7 +684,9 @@ def main():
     'cpuexecutioncap':            { 'default': None,   'type': 'str' },
     'cpuhotplug':                 { 'default': None,   'type': 'str' },
     'cpuid':                      { 'default': None,   'type': 'str' },
+    'cpu':                        { 'default': None,   'type': 'str' },
     'cpus':                       { 'default': None,   'type': 'str' },
+    'cputune':                    { 'default': None,   'type': 'str' },
     'createdir':                  { 'default': None,   'type': 'str' },
     'createdirectory':            { 'default': None,   'type': 'str' },
     'createtemp':                 { 'default': None,   'type': 'str' },
@@ -611,10 +695,14 @@ def main():
     'defaultfrontend':            { 'default': None,   'type': 'str' },
     'delete':                     { 'default': False,  'type': 'bool' },
     'description':                { 'default': None,   'type': 'str' },
+    'destroy-on-exit':            { 'default': None,   'type': 'str' },
     'device':                     { 'default': None,   'type': 'str' },
     'dhcp':                       { 'default': None,   'type': 'str' },
     'disable':                    { 'default': None,   'type': 'str' },
     'discard':                    { 'default': None,   'type': 'str' },
+    'disk':                       { 'default': None,   'type': 'str' },
+    'disk1':                      { 'default': None,   'type': 'str' },
+    'disk2':                      { 'default': None,   'type': 'str' },
     'domain':                     { 'default': None,   'type': 'str' },
     'draganddrop':                { 'default': None,   'type': 'str' },
     'dry-run':                    { 'default': False,  'type': 'bool' },
@@ -622,13 +710,17 @@ def main():
     'encodedlun':                 { 'default': None,   'type': 'str' },
     'eula':                       { 'default': None,   'type': 'str' },
     'eulafile':                   { 'default': None,   'type': 'str' },
+    'events':                     { 'default': None,   'type': 'str' },
     'excl-mac':                   { 'default': None,   'type': 'str' },
     'excl-mac-wild':              { 'default': None,   'type': 'str' },
     'exe':                        { 'default': None,   'type': 'str' },
     'execute':                    { 'default': True,   'type': 'bool' },
     'export':                     { 'default': True,   'type': 'str' },
+    'extra-args':                 { 'default': None,   'type': 'str' },
     'extpack':                    { 'default': None,   'type': 'str' },
+    'features':                   { 'default': None,   'type': 'str' },
     'filename':                   { 'default': None,   'type': 'str' },
+    'filesystem':                 { 'default': None,   'type': 'str' },
     'firmware':                   { 'default': None,   'type': 'str' },
     'fixed-address':              { 'default': None,   'type': 'str' },
     'follow':                     { 'default': None,   'type': 'str' },
@@ -640,34 +732,44 @@ def main():
     'get':                        { 'default': None,   'type': 'str' },
     'getproperty':                { 'default': None,   'type': 'str' },
     'global':                     { 'default': None,   'type': 'str' },
+    'graphics':                   { 'default': None,   'type': 'str' },
     'graphicscontroller':         { 'default': None,   'type': 'str' },
     'group':                      { 'default': None,   'type': 'str' },
     'groups':                     { 'default': None,   'type': 'str' },
     'guestmemoryballoon':         { 'default': None,   'type': 'str' },
     'hardwareuuid':               { 'default': None,   'type': 'str' },
+    'host-device':                { 'default': None,   'type': 'str' },
+    'hostdev':                    { 'default': None,   'type': 'str' },
     'hostiocache':                { 'default': None,   'type': 'str' },
     'hotpluggable':               { 'default': None,   'type': 'str' },
     'hpet':                       { 'default': None,   'type': 'str' },
+    'hvm':                        { 'default': None,   'type': 'str' },
     'hwvirtex':                   { 'default': None,   'type': 'str' },
     'hwvirtexclusive':            { 'default': None,   'type': 'str' },
+    'idmap':                      { 'default': None,   'type': 'str' },
     'iconfile':                   { 'default': None,   'type': 'str' },
     'ignore-operhaned-processes': { 'default': None,   'type': 'str' },
     'import':                     { 'default': None,   'type': 'str' },
     'incl-mac':                   { 'default': None,   'type': 'str' },
     'incl-mac-wild':              { 'default': None,   'type': 'str' },
     'initiator':                  { 'default': None,   'type': 'str' },
+    'initrd-inject':              { 'default': None,   'type': 'str' },
+    'input':                      { 'default': None,   'type': 'str' },
     'inputfile':                  { 'default': None,   'type': 'str' },
+    'install':                    { 'default': None,   'type': 'str' },
     'interface':                  { 'default': None,   'type': 'str' },
     'intnet':                     { 'default': None,   'type': 'str' },
     'intnet1':                    { 'default': None,   'type': 'str' },
     'intnet2':                    { 'default': None,   'type': 'str' },
     'intnet3':                    { 'default': None,   'type': 'str' },
     'intnet4':                    { 'default': None,   'type': 'str' },
+    'iothreads':                  { 'default': None,   'type': 'str' },
     'ip':                         { 'default': None,   'type': 'str' },
     'ipv4':                       { 'default': None,   'type': 'str' },
     'ipv6':                       { 'default': None,   'type': 'str' },
     'keyboard':                   { 'default': None,   'type': 'str' },
     'largepages':                 { 'default': None,   'type': 'str' },
+    'launchSecurity':             { 'default': None,   'type': 'str' },
     'legacy09':                   { 'default': None,   'type': 'str' },
     'list':                       { 'default': 'vms',  'type': 'str' },
     'loghistorycount':            { 'default': None,   'type': 'str' },
@@ -689,13 +791,19 @@ def main():
     'macaddress2':                { 'default': None,   'type': 'str' },
     'macaddress3':                { 'default': None,   'type': 'str' },
     'macaddress4':                { 'default': None,   'type': 'str' },
+    'machine':                    { 'default': None,   'type': 'str' },
     'machinefolder':              { 'default': None,   'type': 'str' },
     'machinereadable':            { 'default': False,  'type': 'bool' },
     'manufacturer':               { 'default': None,   'type': 'str' },
     'maskedinterfaces':           { 'default': None,   'type': 'str' },
     'max-lease-time':             { 'default': None,   'type': 'str' },
     'medium':                     { 'default': None,   'type': 'str' },
+    'memballoon':                 { 'default': None,   'type': 'str' },
+    'memdev':                     { 'default': None,   'type': 'str' },
     'memory':                     { 'default': None,   'type': 'str' },
+    'memorybacking':              { 'default': None,   'type': 'str' },
+    'memtune':                    { 'default': None,   'type': 'str' },
+    'metadata':                   { 'default': None,   'type': 'str' },
     'min-lease-time':             { 'default': None,   'type': 'str' },
     'mkdir':                      { 'default': None,   'type': 'str' },
     'mktemp':                     { 'default': None,   'type': 'str' },
@@ -753,6 +861,7 @@ def main():
     'netmask':                    { 'default': None,   'type': 'str' },
     'netname':                    { 'default': None,   'type': 'str' },
     'network':                    { 'default': None,   'type': 'str' },
+    'network-config':             { 'default': None,   'type': 'str' },
     'newname':                    { 'default': None,   'type': 'str' },
     'newpassword':                { 'default': None,   'type': 'str' },
     'newpasswordid':              { 'default': None,   'type': 'str' },
@@ -777,9 +886,14 @@ def main():
     'nictype3':                   { 'default': None,   'type': 'str' },
     'nictype4':                   { 'default': None,   'type': 'str' },
     'nonrotational':              { 'default': None,   'type': 'str' },
+    'noautoconsole':              { 'default': None,   'type': 'str' },
+    'noreboot':                   { 'default': None,   'type': 'str' },
+    'numatune':                   { 'default': None,   'type': 'str' },
     'oldpassword':                { 'default': None,   'type': 'str' },
     'options':                    { 'default': None,   'type': 'str' },
     'ostype':                     { 'default': None,   'type': 'str' },
+    'os-type':                    { 'default': None,   'type': 'str' },
+    'os-variant':                 { 'default': None,   'type': 'str' },
     'output':                     { 'default': None,   'type': 'str' },
     'outputfile':                 { 'default': None,   'type': 'str' },
     'ovf09':                      { 'default': None,   'type': 'str' },
@@ -788,8 +902,11 @@ def main():
     'opc10':                      { 'default': None,   'type': 'str' },
     'pae':                        { 'default': None,   'type': 'str' },
     'pagefusion':                 { 'default': None,   'type': 'str' },
+    'panic':                      { 'default': None,   'type': 'str' },
     'password':                   { 'default': None,   'type': 'str' },
     'passwordfile':               { 'default': None,   'type': 'str' },
+    'parallel':                   { 'default': None,   'type': 'str' },
+    'paravirt':                   { 'default': None,   'type': 'str' },
     'paravirtprovider':           { 'default': None,   'type': 'str' },
     'paravirtdebug':              { 'default': None,   'type': 'str' },
     'path':                       { 'default': None,   'type': 'str' },
@@ -798,12 +915,14 @@ def main():
     'pciattach':                  { 'default': None,   'type': 'str' },
     'pcidetach':                  { 'default': None,   'type': 'str' },
     'plugcpu':                    { 'default': None,   'type': 'str' },
+    'pm':                         { 'default': None,   'type': 'str' },
     'pool':                       { 'default': None,   'type': 'str' },
     'poolname':                   { 'default': None,   'type': 'str' },
     'port-forward-4':             { 'default': None,   'type': 'str' },
     'port-forward-6':             { 'default': None,   'type': 'str' },
     'portcount':                  { 'default': None,   'type': 'str' },
     'print':                      { 'default': None,   'type': 'str' },
+    'print-xml':                  { 'default': None,   'type': 'str' },
     'program':                    { 'default': None,   'type': 'str' },
     'product':                    { 'default': None,   'type': 'str' },
     'profile':                    { 'default': None,   'type': 'str' },
@@ -813,6 +932,8 @@ def main():
     'proxymode':                  { 'default': None,   'type': 'str' },
     'proxyurl':                   { 'default': None,   'type': 'str' },
     'putenv':                     { 'default': None,   'type': 'str' },
+    'pxe':                        { 'default': None,   'type': 'str' },
+    'qemu-commandline':           { 'default': None,   'type': 'str' },
     'unplugcpu':                  { 'default': None,   'type': 'str' },
     'recording':                  { 'default': None,   'type': 'str' },
     'recordingscreens':           { 'default': None,   'type': 'str' },
@@ -824,6 +945,7 @@ def main():
     'recordingvideorate':         { 'default': None,   'type': 'str' },
     'recordingvideores':          { 'default': None,   'type': 'str' },
     'recursive':                  { 'default': None,   'type': 'str' },
+    'redirdev':                   { 'default': None,   'type': 'str' },
     'register':                   { 'default': None,   'type': 'str' },
     'remote':                     { 'default': None,   'type': 'str' },
     'remove':                     { 'default': None,   'type': 'str' },
@@ -833,13 +955,18 @@ def main():
     'removeonsuspend':            { 'default': None,   'type': 'str' },
     'ren':                        { 'default': None,   'type': 'str' },
     'rename':                     { 'default': None,   'type': 'str' },
+    'resource':                   { 'default': None,   'type': 'str' },
     'revision':                   { 'default': None,   'type': 'str' },
     'rm':                         { 'default': None,   'type': 'str' },
     'rmdir':                      { 'default': None,   'type': 'str' },
+    'rng':                        { 'default': None,   'type': 'str' },
+    'root-password':              { 'default': None,   'type': 'str' },
     'rtcuseutc':                  { 'default': None,   'type': 'str' },
     'run':                        { 'default': None,   'type': 'str' },
     'screenshotpng':              { 'default': None,   'type': 'str' },
     'search':                     { 'default': None,   'type': 'str' },
+    'seclabel':                   { 'default': None,   'type': 'str' },
+    'serial':                     { 'default': None,   'type': 'str' },
     'serialnumber':               { 'default': None,   'type': 'str' },
     'server':                     { 'default': None,   'type': 'str' },
     'server-ip':                  { 'default': None,   'type': 'str' },
@@ -854,12 +981,16 @@ def main():
     'setup':                      { 'default': None,   'type': 'str' },
     'setuuid':                    { 'default': None,   'type': 'str' },
     'setvideomodehint':           { 'default': None,   'type': 'str' },
+    'size':                       { 'default': None,   'type': 'str' },
+    'smartcard':                  { 'default': None,   'type': 'str' },
     'snapshotfolder':             { 'default': None,   'type': 'str' },
+    'sound':                      { 'default': None,   'type': 'str' },
     'source':                     { 'default': None,   'type': 'str' },
     'spec-ctrl':                  { 'default': None,   'type': 'str' },
     'stat':                       { 'default': None,   'type': 'str' },
     'state':                      { 'default': None,   'type': 'str' },
     'supress-opt':                { 'default': None,   'type': 'str' },
+    'sysinfo':                    { 'default': None,   'type': 'str' },
     'system-uuid-le':             { 'default': None,   'type': 'str' },
     'target':                     { 'default': None,   'type': 'str' },
     'target-directory':           { 'default': None,   'type': 'str' },
@@ -870,10 +1001,12 @@ def main():
     'teleporterport':             { 'default': None,   'type': 'str' },
     'tempeject':                  { 'default': None,   'type': 'str' },
     'timeout':                    { 'default': None,   'type': 'str' },
+    'tpm':                        { 'default': None,   'type': 'str' },
     'tport':                      { 'default': None,   'type': 'str' },
     'tracing-allow-vm-access':    { 'default': None,   'type': 'str' },
     'tracing-config':             { 'default': None,   'type': 'str' },
     'tracing-enabled':            { 'default': None,   'type': 'str' },
+    'transient':                  { 'default': None,   'type': 'str' },
     'type':                       { 'default': None,   'type': 'str' },
     'uart1':                      { 'default': None,   'type': 'str' },
     'uart2':                      { 'default': None,   'type': 'str' },
@@ -889,14 +1022,19 @@ def main():
     'uarttype4':                  { 'default': None,   'type': 'str' },
     'unquoted-args':              { 'default': None,   'type': 'str' },
     'usbcardreader':              { 'default': None,   'type': 'str' },
+    'unattended':                 { 'default': None,   'type': 'str' },
+    'uninstall':                  { 'default': None,   'type': 'str' },
     'upper-ip':                   { 'default': None,   'type': 'str' },
     'username':                   { 'default': None,   'type': 'str' },
     'uuid':                       { 'default': None,   'type': 'str' },
     'value':                      { 'default': None,   'type': 'str' },
     'variant':                    { 'default': None,   'type': 'str' },
+    'vcpus':                      { 'default': None,   'type': 'str' },
     'vendor':                     { 'default': None,   'type': 'str' },
     'vendorid':                   { 'default': None,   'type': 'str' },
     'vendorurl':                  { 'default': None,   'type': 'str' },
+    'video':                      { 'default': None,   'type': 'str' },
+    'virt-type':                  { 'default': "kvm",  'type': 'str' },
     'vm-process-priority':        { 'default': None,   'type': 'str' },
     'vm':                         { 'default': None,   'type': 'str' },
     'vmname':                     { 'default': None,   'type': 'str' },
@@ -912,15 +1050,18 @@ def main():
     'vrdereusecon':               { 'default': None,   'type': 'str' },
     'vrdevideochannel':           { 'default': None,   'type': 'str' },
     'vrdevideochannelquality':    { 'default': None,   'type': 'str' },
+    'vsock':                      { 'default': None,   'type': 'str' },
     'vsys':                       { 'default': None,   'type': 'str' },
     'vtxux':                      { 'default': None,   'type': 'str' },
     'vtxvpid':                    { 'default': None,   'type': 'str' },
+    'wait':                       { 'default': None,   'type': 'str' },
     'wait-start':                 { 'default': None,   'type': 'str' },
     'wait-stdout':                { 'default': None,   'type': 'str' },
     'no-wait-stdout':             { 'default': None,   'type': 'str' },
     'wait-stderr':                { 'default': None,   'type': 'str' },
     'no-wait-stderr':             { 'default': None,   'type': 'str' },
     'watch':                      { 'default': None,   'type': 'str' },
+    'watchdog':                   { 'default': None,   'type': 'str' },
     'websrvauthlibrary':          { 'default': None,   'type': 'str' },
     'x2apic':                     { 'default': None,   'type': 'str' }, 
     'suffix':                     { 'default': None,   'type': 'str' }
@@ -948,6 +1089,9 @@ def main():
   if module.params['vm']:
     module.params['vmname'] = module.params['vm']
 
+  if re.search("img|image",module.params['engine']):
+    (stdout, stderr, rc, command, subroutine) = qemu_image(module)
+  
   if module.params['engine'] == "kvm":
 
     function = re.sub("^startvm$", "start", function)
@@ -979,11 +1123,14 @@ def main():
           module.params['list'] = re.sub("network", "net", module.params['list'])
           (stdout, stderr, rc, command, subroutine) = kvm_list(module)
         else:
-          if re.search("import", function):
+          if re.search("import|resize|convert|customize|cloud-localds", function):
             (stdout, stderr, rc, command, subroutine) = kvm_image(module)
           else:
             if re.search("get", function):
               (stdout, stderr, rc, command, subroutine) = kvm_get_property(module)
+            else:
+              if re.search("install", function):
+                (stdout, stderr, rc, command, subroutine) = kvm_install(module)
 
   if re.search("vbox", module.params['engine']):
 
