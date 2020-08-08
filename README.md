@@ -230,6 +230,7 @@ Set up some variables:
 ```
 - hosts: all
   vars:
+    temp_password_hash:       "INSERT_PASSWORD_HASH_HERE"
     primary_dns:              "8.8.8.8"
     secondary_dns:            "8.8.4.4
     ubuntu_cloud_image:       "/var/lib/libvirt/images/ubuntu-20.04-server-cloudimg-amd64.img"
