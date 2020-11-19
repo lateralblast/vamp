@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.2.5
+# Version:      0.2.6
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -278,7 +278,7 @@ def kvm_image(module):
     else:
       command = "%s %s %s" % (module.params['function'], module.params['outputfile'], module.params['cloud-config'])
   if module.params['function'] == "convert":
-    command = "qemu-img %s -f %s %s %s" % (module.params['function'], module.params['format'], module.params['inputfile'], module.params['outputfile'])
+    command = "qemu-img %s -f %s -O %s %s %s" % (module.params['function'], module.params['format'], module.params['format'], module.params['inputfile'], module.params['outputfile'])
   if module.params['function'] == "resize":
     command = "qemu-img %s %s %s" % (module.params['function'], module.params['inputfile'], module.params['size'])
   if module.params['function'] == "customize":

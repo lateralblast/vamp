@@ -48,3 +48,5 @@
 # Set virt-type default to KVM for KVM
 # 0.2.5: Sat  8 Aug 2020 17:57:54 AEST
 # Fixed import option handing for KVM and updated documentation
+# 0.2.6: Thu 19 Nov 2020 17:59:59 AEDT
+# Added -O option to qemu-image
