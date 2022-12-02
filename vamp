@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Name:         vamp (VirtualBox/VBoxManage Ansible Module in Python)
-# Version:      0.2.6
+# Version:      0.3.3
 # Release:      1
 # License:      CC-BA (Creative Commons By Attribution)
 #               http://creativecommons.org/licenses/by/4.0/legalcode
@@ -245,7 +245,7 @@ def kvm_get_property(module):
 # Handle kvm modify functions e.g. setmem, setvcpus
 
 def kvm_modify(module):
-  subroutine = inspect.stack()[0][3]
+  subroutine = inspect.stack()[0][3] 
   if module.params['type'] == "pool":
     if re.search("define|create", module.params['function']):
       if module.params['print']:
@@ -255,10 +255,78 @@ def kvm_modify(module):
     else:
       command = "virsh pool-%s %s" % (module.params['function'], module.params['poolname'])
   else:
-    if re.search("rename",module.params['vmname']):
-      command = "virsh %s %s %s" % (module.params['function'], module.params['vmname'], module.params['newname'])
+    if re.search("bridge",module.params['type']):
+      if not module.params['mode']:
+        module.params['mode'] = "bridge"
+      if module.params['filename']:
+        command = "virsh net-define %s" % (module.params['filename'])
+        if not module.params['bridgename']:
+          module.params['bridgename'] = module.params['bridge']
+        if re.search("dump", module.params['function']):
+          command = "virsh net-dumpxml %s > %s" % (module.params['bridgename'], module.params['filename'])
+        else:
+          if module.params['start'] == True:
+            command = "%s ; virsh net-start %s" % (command, module.params['bridgename'])
+          if module.params['autostart'] == True:
+            command = "%s ; virsh net-autostart %s" % (command, module.params['bridgename'])
+      else:
+        if module.params['bridge'] or module.params['bridgename']:
+          if not module.params['bridgename']:
+            module.params['bridgename'] = module.params['bridge']
+          filename = "/tmp/%s.xml" % (module.params['bridgename'])
+          if re.search("delete|destroy|undefine", module.params['function']):
+            command = "virsh net-undefine %s" % (module.params['bridgename'])
+          else:
+            filename = "/tmp/%s.xml" % (module.params['bridgename'])
+            module.params['filename'] = filename
+            bridge = "<network>\n"
+            bridge = "%s  <name>%s</name>\n" % (bridge, module.params['bridgename'])
+            if module.params['startport']:
+              bridge = "%s    <nat>\n" % (bridge)
+              bridge = "%s      <port start='%s' end='%s'/>\n" % (bridge, module.params['startport'], module.params['endport']) 
+              bridge = "%s    </nat>\n"  % (bridge)
+              bridge = "%s  </forward>\n" % (bridge) 
+            else:
+              bridge = "%s />\n" % (bridge)
+            if module.params['uuid']:
+              bridge = "%s  <uuid>%s</uuid>\n" % (bridge, module.params['uuid'])
+            bridge = "%s  <forward mode='%s'/>\n" % (bridge, module.params['mode'])
+            bridge = "%s  <bridge name='%s'" % (bridge, module.params['bridgename'])
+            if module.params['macaddress']:
+              bridge = "%s  <mac address='%s'/>\n" % (bridge, module.params['macaddress'])
+            if module.params['ipaddress']:
+              bridge = "%s  <ip address='%s' netmask='%s'/>\n" % (bridge, module.params['ipaddress'], module.params['netmask'])
+            if module.params['stp']:
+              bridge = "%s strp='%s'" % (bridge, module.params['stp'])
+            if module.params['delay']:
+              bridge = "%s delay='%s'" % (bridge, module.params['delay'])
+            if module.params['bridgeip']:
+              strings[counter] = "  <ip address='%s' netmask='%s'>\n" % (module.params['bridgeip'], module.params['bridgenetmask'])
+            if module.params['dhcp'] == True:
+                bridge = "%s    <dhcp>\n" % (bridge)
+                if module.params['startip']:
+                  bridge = "%s      <range start='%s' end='%s'/>\n" % (bridge, module.params['startip'], module.params['endip'])
+                bridge = "%s    </dhcp>\n" % (bridge)
+                bridge = "%s  </ip>\n" % (bridge)
+            bridge  = "%s<network>\n" % (bridge)
+            file = open(filename, "w")
+            file.write(bridge)
+            command = "virsh net-define %s" % (module.params['filename'])
+            if module.params['start'] == True:
+              command = "%s ; virsh net-start %s" % (command, module.params['bridgename'])
+            if module.params['autostart'] == True:
+              command = "%s ; virsh net-autostart %s" % (command, module.params['bridgename'])
     else:
-      command = "virsh %s %s" % (module.params['function'], module.params['vmname'])
+      if re.search("rename",module.params['function']):
+        command = "virsh %s %s %s" % (module.params['function'], module.params['vmname'], module.params['newname'])
+      else:
+        if module.params['filename']:
+          command = "virsh %s %s" % (module.params['function'], module.params['filename'])
+        else:
+          if module.params['remove-all-storage'] == True:
+            command = "virsh %s %s --remove-all-storage" % (module.params['function'], module.params['vmname'])
+          else:
+            command = "virsh %s %s" % (module.params['function'], module.params['vmname'])
   if module.params['execute'] == True:
     process = subprocess.run(command, shell = True, universal_newlines = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     return(process.stdout, process.stderr, process.returncode, command, subroutine)
@@ -625,7 +693,7 @@ def main():
     'audioout':                   { 'default': None,   'type': 'str' },
     'audiocontroller':            { 'default': None,   'type': 'str' },
     'audiocodec':                 { 'default': None,   'type': 'str' },
-    'autostart':                  { 'default': None,   'type': 'str' },
+    'autostart':                  { 'default': True,   'type': 'bool' },
     'autostartdbpath':            { 'default': None,   'type': 'str' },
     'autostart-delay':            { 'default': None,   'type': 'str' },
     'autostart-enabled':          { 'default': None,   'type': 'str' },
@@ -647,6 +715,11 @@ def main():
     'boot3':                      { 'default': None,   'type': 'str' },
     'boot4':                      { 'default': None,   'type': 'str' },
     'bootable':                   { 'default': None,   'type': 'str' },
+    'bridge':                     { 'default': None,   'type': 'str' },
+    'bridgeip':                   { 'default': None,   'type': 'str' },
+    'bridgemac':                  { 'default': None,   'type': 'str' },
+    'bridgename':                 { 'default': None,   'type': 'str' },
+    'bridgenetmask':              { 'default': None,   'type': 'str' },
     'cableconnected1':            { 'default': None,   'type': 'str' },
     'cableconnected2':            { 'default': None,   'type': 'str' },
     'cableconnected3':            { 'default': None,   'type': 'str' },
@@ -693,11 +766,12 @@ def main():
     'createtemporary':            { 'default': None,   'type': 'str' },
     'default-lease-time':         { 'default': None,   'type': 'str' },
     'defaultfrontend':            { 'default': None,   'type': 'str' },
+    'delay':                      { 'default': None,   'type': 'str' },
     'delete':                     { 'default': False,  'type': 'bool' },
     'description':                { 'default': None,   'type': 'str' },
     'destroy-on-exit':            { 'default': None,   'type': 'str' },
     'device':                     { 'default': None,   'type': 'str' },
-    'dhcp':                       { 'default': None,   'type': 'str' },
+    'dhcp':                       { 'default': False,  'type': 'bool' },
     'disable':                    { 'default': None,   'type': 'str' },
     'discard':                    { 'default': None,   'type': 'str' },
     'disk':                       { 'default': None,   'type': 'str' },
@@ -708,6 +782,8 @@ def main():
     'dry-run':                    { 'default': False,  'type': 'bool' },
     'enable':                     { 'default': None,   'type': 'str' },
     'encodedlun':                 { 'default': None,   'type': 'str' },
+    'endip':                      { 'default': None,   'type': 'str' },
+    'endport':                    { 'default': None,   'type': 'str' },
     'eula':                       { 'default': None,   'type': 'str' },
     'eulafile':                   { 'default': None,   'type': 'str' },
     'events':                     { 'default': None,   'type': 'str' },
@@ -764,7 +840,7 @@ def main():
     'intnet3':                    { 'default': None,   'type': 'str' },
     'intnet4':                    { 'default': None,   'type': 'str' },
     'iothreads':                  { 'default': None,   'type': 'str' },
-    'ip':                         { 'default': None,   'type': 'str' },
+    'ipaddress':                  { 'default': None,   'type': 'str' },
     'ipv4':                       { 'default': None,   'type': 'str' },
     'ipv6':                       { 'default': None,   'type': 'str' },
     'keyboard':                   { 'default': None,   'type': 'str' },
@@ -787,6 +863,7 @@ def main():
     'lptmode3':                   { 'default': None,   'type': 'str' },
     'lptmode4':                   { 'default': None,   'type': 'str' },
     'lun':                        { 'default': None,   'type': 'str' },
+    'macaddress':                 { 'default': None,   'type': 'str' },
     'macaddress1':                { 'default': None,   'type': 'str' },
     'macaddress2':                { 'default': None,   'type': 'str' },
     'macaddress3':                { 'default': None,   'type': 'str' },
@@ -808,6 +885,7 @@ def main():
     'mkdir':                      { 'default': None,   'type': 'str' },
     'mktemp':                     { 'default': None,   'type': 'str' },
     'mouse':                      { 'default': None,   'type': 'str' },
+    'mode':                       { 'default': None,   'type': 'str' },
     'move':                       { 'default': None,   'type': 'str' },
     'mtype':                      { 'default': None,   'type': 'str' },
     'mv':                         { 'default': None,   'type': 'str' },
@@ -949,6 +1027,7 @@ def main():
     'register':                   { 'default': None,   'type': 'str' },
     'remote':                     { 'default': None,   'type': 'str' },
     'remove':                     { 'default': None,   'type': 'str' },
+    'remove-all-storage':         { 'default': True,   'type': 'bool' },
     'removedir':                  { 'default': None,   'type': 'str' },
     'removedirectory':            { 'default': None,   'type': 'str' },
     'removefile':                 { 'default': None,   'type': 'str' },
@@ -987,8 +1066,12 @@ def main():
     'sound':                      { 'default': None,   'type': 'str' },
     'source':                     { 'default': None,   'type': 'str' },
     'spec-ctrl':                  { 'default': None,   'type': 'str' },
+    'start':                      { 'default': True,   'type': 'bool' },
+    'statip':                     { 'default': None,   'type': 'str' },
+    'startport':                  { 'default': None,   'type': 'str' },
     'stat':                       { 'default': None,   'type': 'str' },
     'state':                      { 'default': None,   'type': 'str' },
+    'stp':                        { 'default': None,   'type': 'str' },
     'supress-opt':                { 'default': None,   'type': 'str' },
     'sysinfo':                    { 'default': None,   'type': 'str' },
     'system-uuid-le':             { 'default': None,   'type': 'str' },

@@ -89,6 +89,10 @@ Then do the following:
 Examples
 --------
 
+I have started to put some examples in examples sub directory. There is also an example test test.sh script that calls ansible-playbook and loads the module.
+
+Below are some example ansible stanzas:
+
 Check VM has 2 CPUs:
 
 ```

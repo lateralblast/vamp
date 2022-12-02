@@ -1,0 +1,7 @@
+- name: Configure KVM Bridge
+  vamp:
+    engine:     kvm
+    function:   create
+    type:       bridge
+    bridgename: "{{ kvm_bridge }}"
+    execute:    no

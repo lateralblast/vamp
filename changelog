@@ -50,3 +50,17 @@
 # Fixed import option handing for KVM and updated documentation
 # 0.2.6: Thu 19 Nov 2020 17:59:59 AEDT
 # Added -O option to qemu-image
+# 0.2.7: Fri 25 Nov 2022 12:40:10 AEDT
+# Added bridge creation for KVM
+# 0.2.8: Sat 26 Nov 2022 12:43:19 AEDT
+# Added --remove-all-storage for undefine for KVM
+# 0.2.9: Sat 26 Nov 2022 13:12:00 AEDT
+# Added dumpxml for KVM
+# 0.3.0: Mon 28 Nov 2022 13:27:52 AEDT
+# Added more KVM bridge support
+# 0.3.1: Fri  2 Dec 2022 13:26:30 AEDT
+# Added more KVM bridge support
+# 0.3.2: Fri  2 Dec 2022 16:13:44 AEDT
+# Fixed bugs with KVM bridge support
+# 0.3.3: Fri  2 Dec 2022 16:27:02 AEDT
+# Added examples

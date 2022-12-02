@@ -1,0 +1,11 @@
+# Example ansible YAML file
+
+- hosts: all
+  vars:
+    kvm_bridge: "br0"
+
+  connection: local
+  become: True
+
+  tasks:
+    - include: kvm/bridge.yaml

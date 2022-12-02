@@ -1,0 +1,6 @@
+test:
+  hosts:
+    test001:
+      ansible_connection: ssh
+      ansible_host:       192.168.1.171
+      ansible_user:       ansible 
