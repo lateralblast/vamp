@@ -10,11 +10,18 @@ Introduction
 
 This is an Ansible module for VirtualBox, and KVM.
 
-I couldn't find a suitable Anisible Module for driving VirtualBox or KVM, 
-and calling VirtualBox or KVM from Ansible via shell module was tedious.
+It should be noted there is a mainstream module for driving libbvirt:
 
-At the moment it is a simple wrapper with some handling to make it
-easier to use than calling vboxmanage or virsh itself.
+https://docs.ansible.com/ansible/latest/collections/community/libvirt/virt_module.html
+
+Also there is a Python module for driving libvirt.
+
+In general I've found that these obfuscate the underlying plumbing to make understanding,
+and utilising them easier, but I've found they fail or make more complex configurations,
+e.g those with pass through more difficult, or more steps.
+
+While arguably more painful/complex, simply calling virsh, I can create a KVM VM with hardware pass through in a single stanza.
+This stanza also closely reflects the commandline making it far easier for me to debug, as I can easily convert the stanza to and from a virsh commandline.
 
 Usage
 -----
